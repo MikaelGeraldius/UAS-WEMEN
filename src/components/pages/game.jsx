@@ -7,6 +7,7 @@ import StatusBar from './game_components/status'
 import Buttons from './game_components/button';
 import Inventory from './game_components/inventory.jsx';
 import Navigator from './game_components/navigator.jsx';
+import SnakeGame from './game_components/snake.jsx';
 
 function reducer (info, action){
   let { greet, day, hour, minute } = info.time;
@@ -113,6 +114,19 @@ const Game = (data) => {
   const introAnimationRef = useRef();
   const isMovingRef = useRef(false);
   const lastDirectionRef = useRef('down');
+  const playerRef = useRef(new window.Image());
+  const playerCurrStartRef = useRef(0);
+  const playerCurrEndRef = useRef(36);
+  const playerOffsetRef = useRef(9);
+  const playerIdleFramesRef = useRef(0);
+  const playerMovingFramesRef = useRef(0);
+  const charsRef = useRef((typeof data.char === 'number' ? data.char : 0) + 1);
+  const playerIdleImgsRef = useRef([]);
+  const playerRunImgsRef = useRef([]);
+  const contextRef = useRef(null);
+  const dayRef = useRef(new window.Image());
+  const nightRef = useRef(new window.Image());
+  const introRef = useRef(new window.Image());
  
   useEffect(() => {
     isSnakeActiveRef.current = isSnakeActive;
@@ -183,46 +197,62 @@ const Game = (data) => {
     if (!val) {
       setAction(undefined);
       wasInSnakeAreaRef.current = false;
-      for (let i = 0; i < snake.length; i++) {
-        const s = snake[i];
-        const playerBox = {
-          left: playerWorld.current.x - 9,
-          right: playerWorld.current.x - 9 + 36,
-          top: playerWorld.current.y - 24,
-          bottom: playerWorld.current.y - 24 + 48
-        };
-        if (
-          playerBox.right > s.position.x &&
-          playerBox.left < s.position.x + s.width &&
-          playerBox.top < s.position.y + s.height &&
-          playerBox.bottom > s.position.y
-        ) {
-          const distTop = Math.abs(playerBox.top - (s.position.y + s.height));
-          const distBottom = Math.abs(playerBox.bottom - s.position.y);
-          const distLeft = Math.abs(playerBox.left - (s.position.x + s.width));
-          const distRight = Math.abs(playerBox.right - s.position.x);
+      canSnake = false;
+      const MAX_ITER = 30;
+      let iter = 0;
+      let moved;
+      do {
+        moved = false;
+        for (let i = 0; i < snake.length; i++) {
+          const s = snake[i];
+          const playerBox = {
+            left: playerWorld.current.x - 9,
+            right: playerWorld.current.x - 9 + 36,
+            top: playerWorld.current.y - 24,
+            bottom: playerWorld.current.y - 24 + 48
+          };
+          if (
+            playerBox.right > s.position.x &&
+            playerBox.left < s.position.x + s.width &&
+            playerBox.top < s.position.y + s.height &&
+            playerBox.bottom > s.position.y
+          ) {
+            const distTop = Math.abs(playerBox.top - (s.position.y + s.height));
+            const distBottom = Math.abs(playerBox.bottom - s.position.y);
+            const distLeft = Math.abs(playerBox.left - (s.position.x + s.width));
+            const distRight = Math.abs(playerBox.right - s.position.x);
 
-          const minDist = Math.min(distTop, distBottom, distLeft, distRight);
+            const minDist = Math.min(distTop, distBottom, distLeft, distRight);
 
-          if (minDist === distTop) {
-            // Move above
-            playerWorld.current.y = s.position.y + s.height + 24;
-          } else if (minDist === distBottom) {
-            // Move below
-            playerWorld.current.y = s.position.y - 24;
-          } else if (minDist === distLeft) {
-            // Move left
-            playerWorld.current.x = s.position.x + s.width + 9;
-          } else if (minDist === distRight) {
-            // Move right
-            playerWorld.current.x = s.position.x - 36 + 9;
+            const OFFSET = 10;
+
+            if (minDist === distTop) {
+              playerWorld.current.y = s.position.y + s.height + 24 + OFFSET;
+            } else if (minDist === distBottom) {
+              playerWorld.current.y = s.position.y - 24 - OFFSET;
+            } else if (minDist === distLeft) {
+              playerWorld.current.x = s.position.x + s.width + 9 + OFFSET;
+            } else if (minDist === distRight) {
+              playerWorld.current.x = s.position.x - 36 + 9 - OFFSET;
+            }
+            moved = true;
+            break; // break to recalculate playerBox in the next iteration
           }
-          break;
         }
+        iter++;
+      } while (moved && iter < MAX_ITER);
+
+      // Log the new position
+      console.log("Player moved to:", playerWorld.current);
+
+      // Resume animation
+      if (animationRef.current) {
+        requestAnimationFrame(animation);
       }
-      if (animationRef.current) requestAnimationFrame(animationRef.current);
+
+      requestAnimationFrame(animation);
     }
-  }
+  };
 
   collisionsMap.forEach((row, i) => {
     row.forEach((column, j) => {
@@ -327,12 +357,1365 @@ const Game = (data) => {
           !keys.current.d.isPressed
         ) {
           isMovingRef.current = false;
+          playerMovingFramesRef.current = 0;
         }
       }
     }
   };
+
+  function animation(now){
+    if(!isStartGame) return;
+    if(isSnakeActiveRef.current) return;
+    
+    const canvas = canvasRef.current;
+    const c = contextRef.current;
+    if (!c) {
+      console.error('Canvas context is null');
+      return;
+    }
+    console.log('animation running');
+    const day = dayRef.current;
+    const night = nightRef.current;
+    const player = playerRef.current;
+
+    console.log(playerWorld.current);
+    if (isSnakeActiveRef.current) return;
+    const delta = now - lastTime;
+    lastTime = now;
+
+    const cameraOffsetX = canvas.width / 2 - playerWorld.current.x;
+    const cameraOffsetY = canvas.height / 2 - playerWorld.current.y;
+
+    c.clearRect(0, 0, canvas.width, canvas.height);
+
+    console.log('day', day.complete, day.naturalWidth);
+    
+
+    if (dayMode)
+      c.drawImage(day, cameraOffsetX, cameraOffsetY);
+    else 
+      c.drawImage(night, cameraOffsetX, cameraOffsetY);
+
+    const chars = charsRef.current;
+    const charIdx = chars - 1;
+    const dir = lastDirectionRef.current;
+    const dirKey = dir === 'up' ? 'U' : dir === 'down' ? 'D' : dir === 'left' ? 'L' : 'R';
+    
+    let playerImg;
+    if (!isMovingRef.current) {
+      playerImg = playerIdleImgsRef.current[charIdx][dirKey];
+    } else {
+      playerImg = playerRunImgsRef.current[charIdx][dirKey];
+    }
+    console.log('playerImg', playerImg.complete, playerImg.naturalWidth);
+
+    const playerIdleFrames = playerIdleFramesRef.current;
+    const playerMovingFrames = playerMovingFramesRef.current;
+    let playerCurrStart = playerCurrStartRef.current;
+    let playerCurrEnd = playerCurrEndRef.current;
+    let playerOffset = playerOffsetRef.current;
+    
+    if (playerImg.complete && playerImg.naturalWidth !== 0) {
+      c.drawImage(
+        playerImg,
+        playerCurrStartRef.current,
+        0,
+        playerCurrEndRef.current,
+        playerImg.height || 48,
+        canvas.width/2 - playerOffsetRef.current,
+        canvas.height/2 - (playerImg.height || 48)/2,
+        playerCurrEndRef.current,
+        playerImg.height || 48
+      );
+    }
+
+      c.save();
+      c.strokeStyle = 'red';
+      boundaries.forEach(boundary => {
+          c.strokeRect(
+              boundary.position.x + cameraOffsetX,
+              boundary.position.y + cameraOffsetY,
+              boundary.width,
+              boundary.height
+          );
+      });
+      c.restore();
+      c.save();
+      c.strokeStyle = 'green';
+      snake.forEach(boundary => {
+          c.strokeRect(
+              boundary.position.x + cameraOffsetX,
+              boundary.position.y + cameraOffsetY,
+              boundary.width,
+              boundary.height
+          );
+      });
+      c.restore();
+      c.save();
+      c.strokeStyle = 'brown';
+      dodge.forEach(boundary => {
+          c.strokeRect(
+              boundary.position.x + cameraOffsetX,
+              boundary.position.y + cameraOffsetY,
+              boundary.width,
+              boundary.height
+          );
+      });
+      c.restore();
+      c.save();
+      c.strokeStyle = 'white';
+      sleep.forEach(boundary => {
+          c.strokeRect(
+              boundary.position.x + cameraOffsetX,
+              boundary.position.y + cameraOffsetY,
+              boundary.width,
+              boundary.height
+          );
+      });
+      c.restore();
+      c.save();
+      c.strokeStyle = 'blue';
+      bath.forEach(boundary => {
+          c.strokeRect(
+              boundary.position.x + cameraOffsetX,
+              boundary.position.y + cameraOffsetY,
+              boundary.width,
+              boundary.height
+          );
+      });
+      c.restore();
+      c.save();
+      c.strokeStyle = 'yellow';
+      eat.forEach(boundary => {
+          c.strokeRect(
+              boundary.position.x + cameraOffsetX,
+              boundary.position.y + cameraOffsetY,
+              boundary.width,
+              boundary.height
+          );
+      });
+      c.restore();
+    
+    
+
+    if (canSleep){
+      setAction("sleep");
+    }
+    else if(canEat){
+      setAction("eat");
+    }
+    else if (canBath){
+      setAction('bath');
+    }
+    if (canSnake &&
+        !wasInSnakeAreaRef.current &&
+        action !== 'snake' &&
+        !isSnakeActiveRef.current)
+    {
+      setAction('snake');
+    }
+    wasInSnakeAreaRef.current = canSnake;
+
+    if(!isMovingRef.current){
+      if(lastDirectionRef.current == 'up'){
+          if(chars == 1){
+              if(playerIdleFrames == 0){
+                  playerCurrStartRef.current = 0;
+                  playerCurrEndRef.current = 36;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 1){
+                  playerCurrStartRef.current = 36;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 7;
+              }
+              else if (playerIdleFrames == 2){
+                  playerCurrStartRef.current = 68;
+                  playerCurrEndRef.current = 36;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 3){
+                  playerCurrStartRef.current = 104;
+                  playerCurrEndRef.current = 40;
+                  playerOffsetRef.current = 11;
+              }
+          }else if(chars == 2){
+              
+              if(playerIdleFrames == 0){
+                  playerCurrStartRef.current = 0;
+                  playerCurrEndRef.current = 36;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 1){
+                  playerCurrStartRef.current = 36;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 7;
+              }
+              else if (playerIdleFrames == 2){
+                  playerCurrStartRef.current = 68;
+                  playerCurrEndRef.current = 36;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 3){
+                  playerCurrStartRef.current = 104;
+                  playerCurrEndRef.current = 40;
+                  playerOffsetRef.current = 11;
+              }
+          }else if(chars == 3){
+              
+              if(playerIdleFrames == 0){
+                  playerCurrStartRef.current = 0;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 1){
+                  playerCurrStartRef.current = 32;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 2){
+                  playerCurrStartRef.current = 64;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 3){
+                  playerCurrStartRef.current = 96;
+                  playerCurrEndRef.current = 36;
+                  playerOffsetRef.current = 11;
+              }
+          }
+      }
+      else if(lastDirectionRef.current == 'down'){
+          if(chars == 1){
+              
+              if(playerIdleFrames == 0){
+                  playerCurrStartRef.current = 0;
+                  playerCurrEndRef.current = 36;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 1){
+                  playerCurrStartRef.current = 36;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 7;
+              }
+              else if (playerIdleFrames == 2){
+                  playerCurrStartRef.current = 68;
+                  playerCurrEndRef.current = 36;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 3){
+                  playerCurrStartRef.current = 104;
+                  playerCurrEndRef.current = 40;
+                  playerOffsetRef.current = 11;
+              }
+          }else if(chars == 2){
+              
+              if(playerIdleFrames == 0){
+                  playerCurrStartRef.current = 0;
+                  playerCurrEndRef.current = 36;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 1){
+                  playerCurrStartRef.current = 36;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 7;
+              }
+              else if (playerIdleFrames == 2){
+                  playerCurrStartRef.current = 68;
+                  playerCurrEndRef.current = 36;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 3){
+                  playerCurrStartRef.current = 104;
+                  playerCurrEndRef.current = 40;
+                  playerOffsetRef.current = 11;
+              }
+          }else if(chars == 3){
+              
+              if(playerIdleFrames == 0){
+                  playerCurrStartRef.current = 0;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 1){
+                  playerCurrStartRef.current = 32;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 2){
+                  playerCurrStartRef.current = 64;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 3){
+                  playerCurrStartRef.current = 96;
+                  playerCurrEndRef.current = 36;
+                  playerOffsetRef.current = 11;
+              }
+          }
+      }
+      else if(lastDirectionRef.current == 'left'){
+          if(chars == 1){
+              
+              if(playerIdleFrames == 0){
+                  playerCurrStartRef.current = 0;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 1){
+                  playerCurrStartRef.current = 32;
+                  playerCurrEndRef.current = 28;
+                  playerOffsetRef.current = 7;
+              }
+              else if (playerIdleFrames == 2){
+                  playerCurrStartRef.current = 60;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 3){
+                  playerCurrStartRef.current = 92;
+                  playerCurrEndRef.current = 36;
+                  playerOffsetRef.current = 11;
+              }
+          }else if(chars == 2){
+              
+              if(playerIdleFrames == 0){
+                  playerCurrStartRef.current = 0;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 1){
+                  playerCurrStartRef.current = 32;
+                  playerCurrEndRef.current = 28;
+                  playerOffsetRef.current = 7;
+              }
+              else if (playerIdleFrames == 2){
+                  playerCurrStartRef.current = 60;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 3){
+                  playerCurrStartRef.current = 92;
+                  playerCurrEndRef.current = 36;
+                  playerOffsetRef.current = 11;
+              }
+          }else if(chars == 3){
+              
+              if(playerIdleFrames == 0){
+                  playerCurrStartRef.current = 0;
+                  playerCurrEndRef.current = 28;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 1){
+                  playerCurrStartRef.current = 28;
+                  playerCurrEndRef.current = 28;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 2){
+                  playerCurrStartRef.current = 56;
+                  playerCurrEndRef.current = 28;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 3){
+                  playerCurrStartRef.current = 84;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 11;
+              }
+          }
+      }
+      else if(lastDirectionRef.current == 'right'){
+          if (chars == 1){
+              
+              if(playerIdleFrames == 0){
+                  playerCurrStartRef.current = 0;
+                  playerCurrEndRef.current = 36;
+                  playerOffsetRef.current = 11;
+              }
+              else if (playerIdleFrames == 1){
+                  playerCurrStartRef.current = 36;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 2){
+                  playerCurrStartRef.current = 68;
+                  playerCurrEndRef.current = 28;
+                  playerOffsetRef.current = 7;
+              }
+              else if (playerIdleFrames == 3){
+                  playerCurrStartRef.current = 96;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+          }else if (chars == 2){
+              
+              if(playerIdleFrames == 0){
+                  playerCurrStartRef.current = 0;
+                  playerCurrEndRef.current = 36;
+                  playerOffsetRef.current = 11;
+              }
+              else if (playerIdleFrames == 1){
+                  playerCurrStartRef.current = 36;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 2){
+                  playerCurrStartRef.current = 68;
+                  playerCurrEndRef.current = 28 ;
+                  playerOffsetRef.current = 7;
+              }
+              else if (playerIdleFrames == 3){
+                  playerCurrStartRef.current = 96;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+          }else if (chars == 3){
+              
+              if(playerIdleFrames == 0){
+                  playerCurrStartRef.current = 0;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 11;
+              }
+              else if (playerIdleFrames == 1){
+                  playerCurrStartRef.current = 32;
+                  playerCurrEndRef.current = 28;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 2){
+                  playerCurrStartRef.current = 60;
+                  playerCurrEndRef.current = 28;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerIdleFrames == 3){
+                  playerCurrStartRef.current = 88;
+                  playerCurrEndRef.current = 28;
+                  playerOffsetRef.current = 9;
+              }
+          }
+      }
+    }
+    else {
+      const playerBox = {
+        left: playerWorld.current.x - playerOffset,
+        right: playerWorld.current.x - playerOffset + 36,
+        top: playerWorld.current.y - (player.height || 48) / 2,
+        bottom: playerWorld.current.y - (player.height || 48) / 2 + (player.height || 48)
+      };
+
+      if(keys.current.w.isPressed && lastDirectionRef.current === 'up'){
+        isMovingRef.current = true;
+        const nextTop = playerBox.top - speed.current * (delta / 16.67);
+        const nextBottom = playerBox.bottom - speed.current * (delta / 16.67);
+        for(let i = 0; i < boundaries.length; i++){
+          const boundary = boundaries[i];
+          if(
+            playerBox.right > boundary.position.x &&
+            playerBox.left < boundary.position.x + boundary.width &&
+            nextTop < boundary.position.y + boundary.height &&
+            nextBottom > boundary.position.y
+          ){
+            isMovingRef.current = false;
+
+            playerMovingFramesRef.current = 0;
+
+            if (lastDirectionRef.current === 'up') {
+              if (chars === 1 || chars === 2) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 34;
+                playerOffsetRef.current = 11;
+              } else if (chars === 3) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 34;
+                playerOffsetRef.current = 11;
+              }
+            } else if (lastDirectionRef.current === 'down') {
+              if (chars === 1 || chars === 2) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 30;
+                playerOffsetRef.current = 9;
+              } else if (chars === 3) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 30;
+                playerOffsetRef.current = 9;
+              }
+            } else if (lastDirectionRef.current === 'left') {
+              if (chars === 1 || chars === 2) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 24;
+                playerOffsetRef.current = 7;
+              } else if (chars === 3) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 24;
+                playerOffsetRef.current = 7;
+              }
+            } else if (lastDirectionRef.current === 'right') {
+              if (chars === 1 || chars === 2) {
+                playerCurrStartRef.current = 150;
+                playerCurrEndRef.current = 24;
+                playerOffsetRef.current = 5;
+              } else if (chars === 3) {
+                playerCurrStartRef.current = 152;
+                playerCurrEndRef.current = 24;
+                playerOffsetRef.current = 5;
+              }
+            }
+            break;
+          }
+        }
+        canBath = canSnake = canDodge = canEat = canSleep = false;
+        for(let i = 0; i < bath.length; i++){
+          const bathDetect = bath[i];
+          if(
+              playerBox.right > bathDetect.position.x &&
+              playerBox.left < bathDetect.position.x + bathDetect.width &&
+              playerBox.top < bathDetect.position.y + bathDetect.height &&
+              playerBox.bottom > bathDetect.position.y
+          ){
+              canBath = true;
+              break;
+          }
+        }
+        for(let i = 0; i < bath.length; i++){
+          const bathDetect = bath[i];
+          if(
+            playerBox.right > bathDetect.position.x &&
+            playerBox.left < bathDetect.position.x + bathDetect.width &&
+            playerBox.top < bathDetect.position.y + bathDetect.height &&
+            playerBox.bottom > bathDetect.position.y
+          ){
+            canBath = true;
+            break;
+          }
+        }
+        for(let i = 0; i < snake.length; i++){
+          const snakeDetect = snake[i];
+          if(
+            playerBox.right > snakeDetect.position.x &&
+            playerBox.left < snakeDetect.position.x + snakeDetect.width &&
+            playerBox.top < snakeDetect.position.y + snakeDetect.height &&
+            playerBox.bottom > snakeDetect.position.y
+          ){
+            canSnake = true;
+            break;
+          }
+        }
+        for(let i = 0; i < dodge.length; i++){
+          const dodgeDetect = dodge[i];
+          if(
+            playerBox.right > dodgeDetect.position.x &&
+            playerBox.left < dodgeDetect.position.x + dodgeDetect.width &&
+            playerBox.top < dodgeDetect.position.y + dodgeDetect.height &&
+            playerBox.bottom > dodgeDetect.position.y
+          ){
+            canDodge = true;
+            break;
+          }
+        }
+        for(let i = 0; i < eat.length; i++){
+          const eatDetect = eat[i];
+          if(
+            playerBox.right > eatDetect.position.x &&
+            playerBox.left < eatDetect.position.x + eatDetect.width &&
+            playerBox.top < eatDetect.position.y + eatDetect.height &&
+            playerBox.bottom > eatDetect.position.y
+          ){
+            canEat = true;
+            break;
+          }
+        }
+        for(let i = 0; i < sleep.length; i++){
+          const sleepDetect = sleep[i];
+          if(
+            playerBox.right > sleepDetect.position.x &&
+            playerBox.left < sleepDetect.position.x + sleepDetect.width &&
+            playerBox.top < sleepDetect.position.y + sleepDetect.height &&
+            playerBox.bottom > sleepDetect.position.y
+          ){
+            canSleep = true;
+            break;
+          }
+        }
+        if(isMovingRef.current){
+            playerWorld.current.y -= speed.current * (delta / 16.67);
+        }
+        if(chars == 1){
+          if(playerMovingFrames == 0){
+            playerCurrStartRef.current = 0;
+            playerCurrEndRef.current = 34;
+            playerOffsetRef.current = 11;
+          }
+          else if(playerMovingFrames == 1){
+            playerCurrStartRef.current = 34;
+            playerCurrEndRef.current = 34;
+            playerOffsetRef.current = 12;
+          }
+          else if(playerMovingFrames == 2){
+            playerCurrStartRef.current = 68;
+            playerCurrEndRef.current = 34;
+            playerOffsetRef.current = 11;
+          }
+          else if(playerMovingFrames == 3){
+            playerCurrStartRef.current = 102;
+            playerCurrEndRef.current = 34;
+            playerOffsetRef.current = 9;
+          }
+          else if (playerMovingFrames == 4){
+            playerCurrStartRef.current = 136;
+            playerCurrEndRef.current = 34;
+            playerOffsetRef.current = 8;
+          }
+          else if (playerMovingFrames == 5){
+            playerCurrStartRef.current = 170;
+            playerCurrEndRef.current = 34;
+            playerOffsetRef.current = 9;
+          }
+        }else if(chars == 2){
+          if(playerMovingFrames == 0){
+            playerCurrStartRef.current = 0;
+            playerCurrEndRef.current = 34;
+            playerOffsetRef.current = 11;
+          }
+          else if(playerMovingFrames == 1){
+            playerCurrStartRef.current = 34;
+            playerCurrEndRef.current = 34;
+            playerOffsetRef.current = 12;
+          }
+          else if(playerMovingFrames == 2){
+            playerCurrStartRef.current = 68;
+            playerCurrEndRef.current = 34;
+            playerOffsetRef.current = 11;
+          }
+          else if(playerMovingFrames == 3){
+            playerCurrStartRef.current = 102;
+            playerCurrEndRef.current = 34;
+            playerOffsetRef.current = 9;
+          }
+          else if (playerMovingFrames == 4){
+            playerCurrStartRef.current = 136;
+            playerCurrEndRef.current = 34;
+            playerOffsetRef.current = 8;
+          }
+          else if (playerMovingFrames == 5){
+            playerCurrStartRef.current = 170;
+            playerCurrEndRef.current = 34;
+            playerOffsetRef.current = 9;
+          }
+        }
+        else if(chars == 3){
+          if(playerMovingFrames == 0){
+            playerCurrStartRef.current = 0;
+            playerCurrEndRef.current = 34;
+            playerOffsetRef.current = 11;
+          }
+          else if(playerMovingFrames == 1){
+            playerCurrStartRef.current = 34;
+            playerCurrEndRef.current = 34;
+            playerOffsetRef.current = 12;
+          }
+          else if(playerMovingFrames == 2){
+            playerCurrStartRef.current = 68;
+            playerCurrEndRef.current = 34;
+            playerOffsetRef.current = 11;
+          }
+          else if(playerMovingFrames == 3){
+            playerCurrStartRef.current = 102;
+            playerCurrEndRef.current = 34;
+            playerOffsetRef.current = 9;
+          }
+          else if (playerMovingFrames == 4){
+            playerCurrStartRef.current = 136;
+            playerCurrEndRef.current = 34;
+            playerOffsetRef.current = 8;
+          }
+          else if (playerMovingFrames == 5){
+            playerCurrStartRef.current = 170;
+            playerCurrEndRef.current = 34;
+            playerOffsetRef.current = 9;
+          }
+        }
+      }
+      else if(keys.current.s.isPressed && lastDirectionRef.current === 'down'){
+        isMovingRef.current = true;
+        const nextTop = playerBox.top + speed.current * (delta / 16.67);
+        const nextBottom = playerBox.bottom + speed.current * (delta / 16.67);
+        for(let i = 0; i < boundaries.length; i++){
+          const boundary = boundaries[i];
+          if(
+            playerBox.right > boundary.position.x &&
+            playerBox.left < boundary.position.x + boundary.width &&
+            nextTop < boundary.position.y + boundary.height &&
+            nextBottom > boundary.position.y
+          ){
+            isMovingRef.current = false;
+
+            playerMovingFramesRef.current = 0;
+
+            if (lastDirectionRef.current === 'up') {
+              if (chars === 1 || chars === 2) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 34;
+                playerOffsetRef.current = 11;
+              } else if (chars === 3) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 34;
+                playerOffsetRef.current = 11;
+              }
+            } else if (lastDirectionRef.current === 'down') {
+              if (chars === 1 || chars === 2) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 30;
+                playerOffsetRef.current = 9;
+              } else if (chars === 3) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 30;
+                playerOffsetRef.current = 9;
+              }
+            } else if (lastDirectionRef.current === 'left') {
+              if (chars === 1 || chars === 2) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 24;
+                playerOffsetRef.current = 7;
+              } else if (chars === 3) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 24;
+                playerOffsetRef.current = 7;
+              }
+            } else if (lastDirectionRef.current === 'right') {
+              if (chars === 1 || chars === 2) {
+                playerCurrStartRef.current = 150;
+                playerCurrEndRef.current = 24;
+                playerOffsetRef.current = 5;
+              } else if (chars === 3) {
+                playerCurrStartRef.current = 152;
+                playerCurrEndRef.current = 24;
+                playerOffsetRef.current = 5;
+              }
+            }
+            break;
+          }
+        }
+        canBath = canSnake = canDodge = canEat = canSleep = false;
+        for(let i = 0; i < bath.length; i++){
+          const bathDetect = bath[i];
+          if(
+            playerBox.right > bathDetect.position.x &&
+            playerBox.left < bathDetect.position.x + bathDetect.width &&
+            playerBox.top < bathDetect.position.y + bathDetect.height &&
+            playerBox.bottom > bathDetect.position.y
+          ){
+            canBath = true;
+            break;
+          }
+        }
+        for(let i = 0; i < snake.length; i++){
+          const snakeDetect = snake[i];
+          if(
+            playerBox.right > snakeDetect.position.x &&
+            playerBox.left < snakeDetect.position.x + snakeDetect.width &&
+            playerBox.top < snakeDetect.position.y + snakeDetect.height &&
+            playerBox.bottom > snakeDetect.position.y
+          ){
+            canSnake = true;
+            break;
+          }
+        }
+        for(let i = 0; i < dodge.length; i++){
+          const dodgeDetect = dodge[i];
+          if(
+            playerBox.right > dodgeDetect.position.x &&
+            playerBox.left < dodgeDetect.position.x + dodgeDetect.width &&
+            playerBox.top < dodgeDetect.position.y + dodgeDetect.height &&
+            playerBox.bottom > dodgeDetect.position.y
+          ){
+            canDodge = true;
+            break;
+          }
+        }
+        for(let i = 0; i < eat.length; i++){
+          const eatDetect = eat[i];
+          if(
+            playerBox.right > eatDetect.position.x &&
+            playerBox.left < eatDetect.position.x + eatDetect.width &&
+            playerBox.top < eatDetect.position.y + eatDetect.height &&
+            playerBox.bottom > eatDetect.position.y
+          ){
+            canEat = true;
+            break;
+          }
+        }
+        for(let i = 0; i < sleep.length; i++){
+          const sleepDetect = sleep[i];
+          if(
+            playerBox.right > sleepDetect.position.x &&
+            playerBox.left < sleepDetect.position.x + sleepDetect.width &&
+            playerBox.top < sleepDetect.position.y + sleepDetect.height &&
+            playerBox.bottom > sleepDetect.position.y
+          ){
+            canSleep = true;
+            break;
+          }
+        }
+        if(isMovingRef.current){
+              playerWorld.current.y += speed.current * (delta / 16.67);
+        }
+        if(chars == 1){
   
+              if(playerMovingFrames == 0){
+                  playerCurrStartRef.current = 0;
+                  playerCurrEndRef.current = 30;
+                  playerOffsetRef.current = 9;
+              }
+              else if(playerMovingFrames == 1){
+                  playerCurrStartRef.current = 30;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+              else if(playerMovingFrames == 2){
+                  playerCurrStartRef.current = 62; 
+                  playerCurrEndRef.current = 30;
+                  playerOffsetRef.current = 9;
+              }
+              else if(playerMovingFrames == 3){
+                  playerCurrStartRef.current = 92;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerMovingFrames == 4){
+                  playerCurrStartRef.current = 124;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerMovingFrames == 5){
+                  playerCurrStartRef.current = 156;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+          }else if(chars == 2){
+  
+              if(playerMovingFrames == 0){
+                  playerCurrStartRef.current = 0;
+                  playerCurrEndRef.current = 30;
+                  playerOffsetRef.current = 9;
+              }
+              else if(playerMovingFrames == 1){
+                  playerCurrStartRef.current = 30;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+              else if(playerMovingFrames == 2){
+                  playerCurrStartRef.current = 62; 
+                  playerCurrEndRef.current = 30;
+                  playerOffsetRef.current = 9;
+              }
+              else if(playerMovingFrames == 3){
+                  playerCurrStartRef.current = 92;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerMovingFrames == 4){
+                  playerCurrStartRef.current = 124;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerMovingFrames == 5){
+                  playerCurrStartRef.current = 156;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+          }else if(chars == 3){
+  
+              if(playerMovingFrames == 0){
+                  playerCurrStartRef.current = 0;
+                  playerCurrEndRef.current = 30;
+                  playerOffsetRef.current = 9;
+              }
+              else if(playerMovingFrames == 1){
+                  playerCurrStartRef.current = 30;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+              else if(playerMovingFrames == 2){
+                  playerCurrStartRef.current = 62; 
+                  playerCurrEndRef.current = 30;
+                  playerOffsetRef.current = 9;
+              }
+              else if(playerMovingFrames == 3){
+                  playerCurrStartRef.current = 92;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerMovingFrames == 4){
+                  playerCurrStartRef.current = 124;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerMovingFrames == 5){
+                  playerCurrStartRef.current = 156;
+                  playerCurrEndRef.current = 32;
+                  playerOffsetRef.current = 9;
+              }
+          }
+      }
+      else if(keys.current.a.isPressed && lastDirectionRef.current === 'left'){
+        isMovingRef.current = true;
+        const nextLeft = playerBox.left - speed.current * (delta / 16.67);
+        const nextRight = playerBox.right - speed.current * (delta / 16.67);
+        for(let i = 0; i < boundaries.length; i++){
+          const boundary = boundaries[i];
+          if(
+            nextRight > boundary.position.x &&
+            nextLeft < boundary.position.x + boundary.width &&
+            playerBox.top < boundary.position.y + boundary.height &&
+            playerBox.bottom > boundary.position.y
+          ){
+            isMovingRef.current = false;
+
+            playerMovingFramesRef.current = 0;
+
+            if (lastDirectionRef.current === 'up') {
+              if (chars === 1 || chars === 2) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 34;
+                playerOffsetRef.current = 11;
+              } else if (chars === 3) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 34;
+                playerOffsetRef.current = 11;
+              }
+            } else if (lastDirectionRef.current === 'down') {
+              if (chars === 1 || chars === 2) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 30;
+                playerOffsetRef.current = 9;
+              } else if (chars === 3) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 30;
+                playerOffsetRef.current = 9;
+              }
+            } else if (lastDirectionRef.current === 'left') {
+              if (chars === 1 || chars === 2) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 24;
+                playerOffsetRef.current = 7;
+              } else if (chars === 3) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 24;
+                playerOffsetRef.current = 7;
+              }
+            } else if (lastDirectionRef.current === 'right') {
+              if (chars === 1 || chars === 2) {
+                playerCurrStartRef.current = 150;
+                playerCurrEndRef.current = 24;
+                playerOffsetRef.current = 5;
+              } else if (chars === 3) {
+                playerCurrStartRef.current = 152;
+                playerCurrEndRef.current = 24;
+                playerOffsetRef.current = 5;
+              }
+            }
+            break;
+          }
+        }
+        canBath = canSnake = canDodge = canEat = canSleep = false;
+        for(let i = 0; i < bath.length; i++){
+          const bathDetect = bath[i];
+          if(
+            playerBox.right > bathDetect.position.x &&
+            playerBox.left < bathDetect.position.x + bathDetect.width &&
+            playerBox.top < bathDetect.position.y + bathDetect.height &&
+            playerBox.bottom > bathDetect.position.y
+          ){
+            canBath = true;
+            break;
+          }
+        }
+        for(let i = 0; i < snake.length; i++){
+          const snakeDetect = snake[i];
+          if(
+            playerBox.right > snakeDetect.position.x &&
+            playerBox.left < snakeDetect.position.x + snakeDetect.width &&
+            playerBox.top < snakeDetect.position.y + snakeDetect.height &&
+            playerBox.bottom > snakeDetect.position.y
+          ){
+            canSnake = true;
+            break;
+          }
+        }
+        for(let i = 0; i < dodge.length; i++){
+          const dodgeDetect = dodge[i];
+          if(
+            playerBox.right > dodgeDetect.position.x &&
+            playerBox.left < dodgeDetect.position.x + dodgeDetect.width &&
+            playerBox.top < dodgeDetect.position.y + dodgeDetect.height &&
+            playerBox.bottom > dodgeDetect.position.y
+          ){
+            canDodge = true;
+            break;
+          }
+        }
+        for(let i = 0; i < eat.length; i++){
+          const eatDetect = eat[i];
+          if(
+            playerBox.right > eatDetect.position.x &&
+            playerBox.left < eatDetect.position.x + eatDetect.width &&
+            playerBox.top < eatDetect.position.y + eatDetect.height &&
+            playerBox.bottom > eatDetect.position.y
+          ){
+            canEat = true;
+            break;
+          }
+        }
+        for(let i = 0; i < sleep.length; i++){
+          const sleepDetect = sleep[i];
+          if(
+            playerBox.right > sleepDetect.position.x &&
+            playerBox.left < sleepDetect.position.x + sleepDetect.width &&
+            playerBox.top < sleepDetect.position.y + sleepDetect.height &&
+            playerBox.bottom > sleepDetect.position.y
+          ){
+            canSleep = true;
+            break;
+          }
+        }
+        if(isMovingRef.current){
+              playerWorld.current.x -= speed.current * (delta / 16.67);
+        }
+        
+        if(chars == 1){
+  
+              if(playerMovingFrames == 0){
+                  playerCurrStartRef.current = 0;
+                  playerCurrEndRef.current = 24;
+                  playerOffsetRef.current = 7;
+              }
+              else if(playerMovingFrames == 1){
+                  playerCurrStartRef.current = 24;
+                  playerCurrEndRef.current = 30;
+                  playerOffsetRef.current = 9;
+              }
+              else if(playerMovingFrames == 2){
+                  playerCurrStartRef.current = 54;
+                  playerCurrEndRef.current = 36;
+                  playerOffsetRef.current = 11;
+              }
+              else if(playerMovingFrames == 3){
+                  playerCurrStartRef.current = 90;
+                  playerCurrEndRef.current = 30;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerMovingFrames == 4){
+                  playerCurrStartRef.current = 120;
+                  playerCurrEndRef.current = 28;
+                  playerOffsetRef.current = 7;
+              }
+              else if (playerMovingFrames == 5){
+                  playerCurrStartRef.current = 148;
+                  playerCurrEndRef.current = 26;
+                  playerOffsetRef.current = 7;
+              }
+          }else if(chars == 2){
+  
+              if(playerMovingFrames == 0){
+                  playerCurrStartRef.current = 0;
+                  playerCurrEndRef.current = 24;
+                  playerOffsetRef.current = 7;
+              }
+              else if(playerMovingFrames == 1){
+                  playerCurrStartRef.current = 24;
+                  playerCurrEndRef.current = 30;
+                  playerOffsetRef.current = 9;
+              }
+              else if(playerMovingFrames == 2){
+                  playerCurrStartRef.current = 54;
+                  playerCurrEndRef.current = 36;
+                  playerOffsetRef.current = 11;
+              }
+              else if(playerMovingFrames == 3){
+                  playerCurrStartRef.current = 90;
+                  playerCurrEndRef.current = 30;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerMovingFrames == 4){
+                  playerCurrStartRef.current = 120;
+                  playerCurrEndRef.current = 28;
+                  playerOffsetRef.current = 7;
+              }
+              else if (playerMovingFrames == 5){
+                  playerCurrStartRef.current = 148;
+                  playerCurrEndRef.current = 26;
+                  playerOffsetRef.current = 7;
+              }
+          }else if(chars == 3){
+  
+              if(playerMovingFrames == 0){
+                  playerCurrStartRef.current = 0;
+                  playerCurrEndRef.current = 24;
+                  playerOffsetRef.current = 7;
+              }
+              else if(playerMovingFrames == 1){
+                  playerCurrStartRef.current = 24;
+                  playerCurrEndRef.current = 30;
+                  playerOffsetRef.current = 9;
+              }
+              else if(playerMovingFrames == 2){
+                  playerCurrStartRef.current = 54;
+                  playerCurrEndRef.current = 36;
+                  playerOffsetRef.current = 11;
+              }
+              else if(playerMovingFrames == 3){
+                  playerCurrStartRef.current = 90;
+                  playerCurrEndRef.current = 30;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerMovingFrames == 4){
+                  playerCurrStartRef.current = 120;
+                  playerCurrEndRef.current = 28;
+                  playerOffsetRef.current = 7;
+              }
+              else if (playerMovingFrames == 5){
+                  playerCurrStartRef.current = 148;
+                  playerCurrEndRef.current = 28;
+                  playerOffsetRef.current = 7; 
+              }
+          }
+      }
+      else if(keys.current.d.isPressed && lastDirectionRef.current === 'right'){
+        isMovingRef.current = true;
+        const nextLeft = playerBox.left + speed.current * (delta / 16.67);
+        const nextRight = playerBox.right + speed.current * (delta / 16.67);
+        for(let i = 0; i < boundaries.length; i++){
+          const boundary = boundaries[i];
+          if(
+            nextRight > boundary.position.x &&
+            nextLeft < boundary.position.x + boundary.width &&
+            playerBox.top < boundary.position.y + boundary.height &&
+            playerBox.bottom > boundary.position.y
+          ){
+            isMovingRef.current = false;
+
+            playerMovingFramesRef.current = 0;
+
+            if (lastDirectionRef.current === 'up') {
+              if (chars === 1 || chars === 2) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 34;
+                playerOffsetRef.current = 11;
+              } else if (chars === 3) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 34;
+                playerOffsetRef.current = 11;
+              }
+            } else if (lastDirectionRef.current === 'down') {
+              if (chars === 1 || chars === 2) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 30;
+                playerOffsetRef.current = 9;
+              } else if (chars === 3) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 30;
+                playerOffsetRef.current = 9;
+              }
+            } else if (lastDirectionRef.current === 'left') {
+              if (chars === 1 || chars === 2) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 24;
+                playerOffsetRef.current = 7;
+              } else if (chars === 3) {
+                playerCurrStartRef.current = 0;
+                playerCurrEndRef.current = 24;
+                playerOffsetRef.current = 7;
+              }
+            } else if (lastDirectionRef.current === 'right') {
+              if (chars === 1 || chars === 2) {
+                playerCurrStartRef.current = 150;
+                playerCurrEndRef.current = 24;
+                playerOffsetRef.current = 5;
+              } else if (chars === 3) {
+                playerCurrStartRef.current = 152;
+                playerCurrEndRef.current = 24;
+                playerOffsetRef.current = 5;
+              }
+            }
+            break;
+          }
+        }
+        canBath = canSnake = canDodge = canEat = canSleep = false;
+        for(let i = 0; i < bath.length; i++){
+          const bathDetect = bath[i];
+          if(
+            playerBox.right > bathDetect.position.x &&
+            playerBox.left < bathDetect.position.x + bathDetect.width &&
+            playerBox.top < bathDetect.position.y + bathDetect.height &&
+            playerBox.bottom > bathDetect.position.y
+          ){
+            canBath = true;
+            break;
+          }
+        }
+        for(let i = 0; i < snake.length; i++){
+          const snakeDetect = snake[i];
+          if(
+            playerBox.right > snakeDetect.position.x &&
+            playerBox.left < snakeDetect.position.x + snakeDetect.width &&
+            playerBox.top < snakeDetect.position.y + snakeDetect.height &&
+            playerBox.bottom > snakeDetect.position.y
+          ){
+            canSnake = true;
+            break;
+          }
+        }
+        for(let i = 0; i < dodge.length; i++){
+          const dodgeDetect = dodge[i];
+          if(
+            playerBox.right > dodgeDetect.position.x &&
+            playerBox.left < dodgeDetect.position.x + dodgeDetect.width &&
+            playerBox.top < dodgeDetect.position.y + dodgeDetect.height &&
+            playerBox.bottom > dodgeDetect.position.y
+          ){
+            canDodge = true;
+            break;
+          }
+        }
+        for(let i = 0; i < eat.length; i++){
+          const eatDetect = eat[i];
+          if(
+            playerBox.right > eatDetect.position.x &&
+            playerBox.left < eatDetect.position.x + eatDetect.width &&
+            playerBox.top < eatDetect.position.y + eatDetect.height &&
+            playerBox.bottom > eatDetect.position.y
+          ){
+            canEat = true;
+            break;
+          }
+        }
+        for(let i = 0; i < sleep.length; i++){
+          const sleepDetect = sleep[i];
+          if(
+            playerBox.right > sleepDetect.position.x &&
+            playerBox.left < sleepDetect.position.x + sleepDetect.width &&
+            playerBox.top < sleepDetect.position.y + sleepDetect.height &&
+            playerBox.bottom > sleepDetect.position.y
+          ){
+            canSleep = true;
+            break;
+          }
+        }
+        if(isMovingRef.current){
+              playerWorld.current.x += speed.current * (delta / 16.67);
+        }
+        
+        if(chars == 1){
+  
+              if(playerMovingFrames == 0){
+                  playerCurrStartRef.current = 150;
+                  playerCurrEndRef.current = 24;
+                  playerOffsetRef.current = 5;
+              }
+              else if(playerMovingFrames == 1){
+                  playerCurrStartRef.current = 120;
+                  playerCurrEndRef.current = 30;
+                  playerOffsetRef.current = 9;
+              }
+              else if(playerMovingFrames == 2){
+                  playerCurrStartRef.current = 84;
+                  playerCurrEndRef.current = 36;
+                  playerOffsetRef.current = 11;
+              }
+              else if(playerMovingFrames == 3){
+                  playerCurrStartRef.current = 54;
+                  playerCurrEndRef.current = 30;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerMovingFrames == 4){
+                  playerCurrStartRef.current = 26;
+                  playerCurrEndRef.current = 28;
+                  playerOffsetRef.current = 7;
+              }
+              else if (playerMovingFrames == 5){
+                  playerCurrStartRef.current = 0;
+                  playerCurrEndRef.current = 26;
+                  playerOffsetRef.current = 7;
+              }
+          }else if(chars == 2){
+  
+              if(playerMovingFrames == 0){
+                  playerCurrStartRef.current = 150;
+                  playerCurrEndRef.current = 24;
+                  playerOffsetRef.current = 5;
+              }
+              else if(playerMovingFrames == 1){
+                  playerCurrStartRef.current = 120;
+                  playerCurrEndRef.current = 30;
+                  playerOffsetRef.current = 11;
+              }
+              else if(playerMovingFrames == 2){
+                  playerCurrStartRef.current = 84;
+                  playerCurrEndRef.current = 36;
+                  playerOffsetRef.current = 9;
+              }
+              else if(playerMovingFrames == 3){
+                  playerCurrStartRef.current = 54;
+                  playerCurrEndRef.current = 30;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerMovingFrames == 4){
+                  playerCurrStartRef.current = 26;
+                  playerCurrEndRef.current = 28;
+                  playerOffsetRef.current = 7;
+              }
+              else if (playerMovingFrames == 5){
+                  playerCurrStartRef.current = 0;
+                  playerCurrEndRef.current = 26;
+                  playerOffsetRef.current = 7;
+              }
+          }else if(chars == 3){
+  
+              if(playerMovingFrames == 0){
+                  playerCurrStartRef.current = 152;
+                  playerCurrEndRef.current = 24;
+                  playerOffsetRef.current = 5;
+              }
+              else if(playerMovingFrames == 1){
+                  playerCurrStartRef.current = 122;
+                  playerCurrEndRef.current = 30;
+                  playerOffsetRef.current = 9;
+              }
+              else if(playerMovingFrames == 2){
+                  playerCurrStartRef.current = 86;
+                  playerCurrEndRef.current = 36;
+                  playerOffsetRef.current = 11;
+              }
+              else if(playerMovingFrames == 3){
+                  playerCurrStartRef.current = 56;
+                  playerCurrEndRef.current = 30;
+                  playerOffsetRef.current = 9;
+              }
+              else if (playerMovingFrames == 4){
+                  playerCurrStartRef.current = 28;
+                  playerCurrEndRef.current = 28;
+                  playerOffsetRef.current = 7;
+              }
+              else if (playerMovingFrames == 5){
+                  playerCurrStartRef.current = 0;
+                  playerCurrEndRef.current = 28;
+                  playerOffsetRef.current = 7;
+              }
+          }
+      }
+    }
+
+    if(keys.current.w.isPressed == false && 
+      keys.current.a.isPressed == false && 
+      keys.current.s.isPressed == false && 
+      keys.current.d.isPressed == false)
+    {
+      isMovingRef.current = false;
+    }
+
+    animationRef.current = requestAnimationFrame(animation);
+  };
+
   useEffect(() => {
+    
     const playerIdleImgs = [
       { U: new window.Image(), D: new window.Image(), L: new window.Image(), R: new window.Image() },
       { U: new window.Image(), D: new window.Image(), L: new window.Image(), R: new window.Image() },
@@ -343,6 +1726,39 @@ const Game = (data) => {
       { U: new window.Image(), D: new window.Image(), L: new window.Image(), R: new window.Image() },
       { U: new window.Image(), D: new window.Image(), L: new window.Image(), R: new window.Image() }
     ];
+
+    const allImages = [
+      dayRef.current,
+      nightRef.current,
+      introRef.current,
+      playerRef.current,
+      // Idle
+      playerIdleImgs[0].U, playerIdleImgs[0].D, playerIdleImgs[0].L, playerIdleImgs[0].R,
+      playerIdleImgs[1].U, playerIdleImgs[1].D, playerIdleImgs[1].L, playerIdleImgs[1].R,
+      playerIdleImgs[2].U, playerIdleImgs[2].D, playerIdleImgs[2].L, playerIdleImgs[2].R,
+      // Run
+      playerRunImgs[0].U, playerRunImgs[0].D, playerRunImgs[0].L, playerRunImgs[0].R,
+      playerRunImgs[1].U, playerRunImgs[1].D, playerRunImgs[1].L, playerRunImgs[1].R,
+      playerRunImgs[2].U, playerRunImgs[2].D, playerRunImgs[2].L, playerRunImgs[2].R,
+    ];
+
+    let imagesLoaded = 0;
+    const totalImages = allImages.length;
+
+    function checkAllLoaded() {
+      imagesLoaded++;
+      console.log('Image loaded', imagesLoaded);
+      tryStartGame();
+    }
+
+    allImages.forEach(img => {
+      img.onload = checkAllLoaded;
+    });
+
+    dayRef.current.src = map.day.source;
+    nightRef.current.src = map.night.source;
+    introRef.current.src = icons.intro;
+    playerRef.current.src = player1Images.idle.D;
     playerIdleImgs[0].U.src = player1Images.idle.U;
     playerIdleImgs[0].D.src = player1Images.idle.D;
     playerIdleImgs[0].L.src = player1Images.idle.L;
@@ -369,29 +1785,70 @@ const Game = (data) => {
     playerRunImgs[2].L.src = player3Images.run.L;
     playerRunImgs[2].R.src = player3Images.run.R;
 
-    const canvas = canvasRef.current;
-    const c = canvas.getContext('2d');
-    setContext(c);
+    playerIdleImgsRef.current = playerIdleImgs;
+    playerRunImgsRef.current = playerRunImgs;
 
-    function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+    playerCurrStartRef.current = 0;
+    playerCurrEndRef.current = 36;
+    playerOffsetRef.current = 9;
+    playerIdleFramesRef.current = 0;
+    playerMovingFramesRef.current = 0;
+    charsRef.current = (typeof data.char === 'number' ? data.char : 0) + 1;
+
+    let userClicked = false;
+
+    function tryStartGame() {
+      console.log('tryStartGame', { userClicked, imagesLoaded });
+      if (userClicked && imagesLoaded === totalImages) {
+        console.log('Calling startGame');
+        startGame();
+      }
     }
 
+    function onUserClick() {
+      userClicked = true;
+      console.log('User clicked');
+      tryStartGame();
+    }
+
+    dayRef.current.onload = checkAllLoaded;
+    nightRef.current.onload = checkAllLoaded;
+    playerRef.current.onload = checkAllLoaded;
+    introRef.current.onload = () => {
+      checkAllLoaded();
+      introAnimationRef.current = requestAnimationFrame(introAnimation);
+      window.addEventListener('click', onUserClick, { once: true });
+    };
+
+    dayRef.current.src = map.day.source;
+    nightRef.current.src = map.night.source;
+    introRef.current.src = icons.intro;
+    playerRef.current.src = player1Images.idle.D;
+
+    if (dayRef.current.complete) checkAllLoaded();
+    if (nightRef.current.complete) checkAllLoaded();
+    if (playerRef.current.complete) checkAllLoaded();
+    if (introRef.current.complete) {
+      checkAllLoaded();
+      introAnimationRef.current = requestAnimationFrame(introAnimation);
+      window.addEventListener('click', onUserClick, { once: true });
+    }
+
+    
+    function resizeCanvas() {
+      const canvas = canvasRef.current;
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
-
-    const intro = new Image();
-    intro.src = icons.intro;
     
-    const day = new Image();
-    day.src = map.day.source;
-  
-    const night = new Image();
-    night.src = map.night.source;
-
-    const player = new Image();
-    player.src = player1Images.idle.D;
+    const canvas = canvasRef.current;
+    if (canvas) {
+      contextRef.current = canvas.getContext('2d');
+    }
 
     let playerCurrStart = 0;
     let playerCurrEnd = 36;
@@ -403,1200 +1860,40 @@ const Game = (data) => {
     let idleInterval;
     
     idleInterval = setInterval(() => {
-        playerIdleFrames = (playerIdleFrames + 1) % 4;
+        playerIdleFramesRef.current = (playerIdleFramesRef.current + 1) % 4;
     }, 150);
 
     function startSprint() {
       if (movingInterval.current) clearInterval(movingInterval.current);
       movingInterval.current = setInterval(() => {
-        playerMovingFrames = (playerMovingFrames + 1) % 6; // Use correct frame count for your animation
+        playerMovingFramesRef.current = (playerMovingFramesRef.current + 1) % 6;
       }, sprintInterval.current);
     }
     startSprint();
     
-    function animation(now){
-      console.log(playerWorld.current);
-      if (isSnakeActiveRef.current) return;
-      const delta = now - lastTime;
-      lastTime = now;
-
-      chars = (typeof data.char === 'number' ? data.char : 0) + 1;
-
-      const cameraOffsetX = canvas.width / 2 - playerWorld.current.x;
-      const cameraOffsetY = canvas.height / 2 - playerWorld.current.y;
-
-      c.clearRect(0, 0, canvas.width, canvas.height);
-
-      if (dayMode)
-        c.drawImage(day, cameraOffsetX, cameraOffsetY);
-      else 
-        c.drawImage(night, cameraOffsetX, cameraOffsetY);
-
-      const charIdx = chars - 1;
-      const dir = lastDirectionRef.current;
-      let playerImg;
-
-      const dirKey = dir === 'up' ? 'U' : dir === 'down' ? 'D' : dir === 'left' ? 'L' : 'R';
-
-      if (!isMovingRef.current) {
-        playerImg = playerIdleImgs[charIdx][dirKey];
-      } else {
-        playerImg = playerRunImgs[charIdx][dirKey];
-      }
-      
-      c.drawImage(
-        playerImg,
-        playerCurrStart,
-        0,
-        playerCurrEnd,
-        playerImg.height || 48,
-        canvas.width/2 - playerOffset,
-        canvas.height/2 - playerImg.height/2,
-        playerCurrEnd,
-        playerImg.height || 48
-      );
-
-        c.save();
-        c.strokeStyle = 'red';
-        boundaries.forEach(boundary => {
-            c.strokeRect(
-                boundary.position.x + cameraOffsetX,
-                boundary.position.y + cameraOffsetY,
-                boundary.width,
-                boundary.height
-            );
-        });
-        c.restore();
-        c.save();
-        c.strokeStyle = 'green';
-        snake.forEach(boundary => {
-            c.strokeRect(
-                boundary.position.x + cameraOffsetX,
-                boundary.position.y + cameraOffsetY,
-                boundary.width,
-                boundary.height
-            );
-        });
-        c.restore();
-        c.save();
-        c.strokeStyle = 'brown';
-        dodge.forEach(boundary => {
-            c.strokeRect(
-                boundary.position.x + cameraOffsetX,
-                boundary.position.y + cameraOffsetY,
-                boundary.width,
-                boundary.height
-            );
-        });
-        c.restore();
-        c.save();
-        c.strokeStyle = 'white';
-        sleep.forEach(boundary => {
-            c.strokeRect(
-                boundary.position.x + cameraOffsetX,
-                boundary.position.y + cameraOffsetY,
-                boundary.width,
-                boundary.height
-            );
-        });
-        c.restore();
-        c.save();
-        c.strokeStyle = 'blue';
-        bath.forEach(boundary => {
-            c.strokeRect(
-                boundary.position.x + cameraOffsetX,
-                boundary.position.y + cameraOffsetY,
-                boundary.width,
-                boundary.height
-            );
-        });
-        c.restore();
-        c.save();
-        c.strokeStyle = 'yellow';
-        eat.forEach(boundary => {
-            c.strokeRect(
-                boundary.position.x + cameraOffsetX,
-                boundary.position.y + cameraOffsetY,
-                boundary.width,
-                boundary.height
-            );
-        });
-        c.restore();
-      
-      
-
-      if (canSleep){
-        setAction("sleep");
-      }
-      else if(canEat){
-        setAction("eat");
-      }
-      else if (canBath){
-        setAction('bath');
-      }
-      if (canSnake &&
-          !wasInSnakeAreaRef.current &&
-          action !== 'snake' &&
-          !isSnakeActiveRef.current)
-      {
-        setAction('snake');
-      }
-      wasInSnakeAreaRef.current = canSnake;
-
-      if(!isMovingRef.current){
-        if(lastDirectionRef.current == 'up'){
-            if(chars == 1){
-                player.src = player1Images.idle.U
-                if(playerIdleFrames == 0){
-                    playerCurrStart = 0;
-                    playerCurrEnd = 36;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 1){
-                    playerCurrStart = 36;
-                    playerCurrEnd = 32;
-                    playerOffset = 7;
-                }
-                else if (playerIdleFrames == 2){
-                    playerCurrStart = 68;
-                    playerCurrEnd = 36;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 3){
-                    playerCurrStart = 104;
-                    playerCurrEnd = 40;
-                    playerOffset = 11;
-                }
-            }else if(chars == 2){
-                player.src = player2Images.idle.U
-                if(playerIdleFrames == 0){
-                    playerCurrStart = 0;
-                    playerCurrEnd = 36;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 1){
-                    playerCurrStart = 36;
-                    playerCurrEnd = 32;
-                    playerOffset = 7;
-                }
-                else if (playerIdleFrames == 2){
-                    playerCurrStart = 68;
-                    playerCurrEnd = 36;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 3){
-                    playerCurrStart = 104;
-                    playerCurrEnd = 40;
-                    playerOffset = 11;
-                }
-            }else if(chars == 3){
-                player.src = player3Images.idle.U
-                if(playerIdleFrames == 0){
-                    playerCurrStart = 0;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 1){
-                    playerCurrStart = 32;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 2){
-                    playerCurrStart = 64;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 3){
-                    playerCurrStart = 96;
-                    playerCurrEnd = 36;
-                    playerOffset = 11;
-                }
-            }
-        }
-        else if(lastDirectionRef.current == 'down'){
-            if(chars == 1){
-                player.src = player1Images.idle.D
-                if(playerIdleFrames == 0){
-                    playerCurrStart = 0;
-                    playerCurrEnd = 36;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 1){
-                    playerCurrStart = 36;
-                    playerCurrEnd = 32;
-                    playerOffset = 7;
-                }
-                else if (playerIdleFrames == 2){
-                    playerCurrStart = 68;
-                    playerCurrEnd = 36;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 3){
-                    playerCurrStart = 104;
-                    playerCurrEnd = 40;
-                    playerOffset = 11;
-                }
-            }else if(chars == 2){
-                player.src = player2Images.idle.D
-                if(playerIdleFrames == 0){
-                    playerCurrStart = 0;
-                    playerCurrEnd = 36;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 1){
-                    playerCurrStart = 36;
-                    playerCurrEnd = 32;
-                    playerOffset = 7;
-                }
-                else if (playerIdleFrames == 2){
-                    playerCurrStart = 68;
-                    playerCurrEnd = 36;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 3){
-                    playerCurrStart = 104;
-                    playerCurrEnd = 40;
-                    playerOffset = 11;
-                }
-            }else if(chars == 3){
-                player.src = player3Images.idle.D
-                if(playerIdleFrames == 0){
-                    playerCurrStart = 0;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 1){
-                    playerCurrStart = 32;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 2){
-                    playerCurrStart = 64;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 3){
-                    playerCurrStart = 96;
-                    playerCurrEnd = 36;
-                    playerOffset = 11;
-                }
-            }
-        }
-        else if(lastDirectionRef.current == 'left'){
-            if(chars == 1){
-                player.src = player1Images.idle.L
-                if(playerIdleFrames == 0){
-                    playerCurrStart = 0;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 1){
-                    playerCurrStart = 32;
-                    playerCurrEnd = 28;
-                    playerOffset = 7;
-                }
-                else if (playerIdleFrames == 2){
-                    playerCurrStart = 60;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 3){
-                    playerCurrStart = 92;
-                    playerCurrEnd = 36;
-                    playerOffset = 11;
-                }
-            }else if(chars == 2){
-                player.src = player2Images.idle.L
-                if(playerIdleFrames == 0){
-                    playerCurrStart = 0;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 1){
-                    playerCurrStart = 32;
-                    playerCurrEnd = 28;
-                    playerOffset = 7;
-                }
-                else if (playerIdleFrames == 2){
-                    playerCurrStart = 60;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 3){
-                    playerCurrStart = 92;
-                    playerCurrEnd = 36;
-                    playerOffset = 11;
-                }
-            }else if(chars == 3){
-                player.src = player3Images.idle.L
-                if(playerIdleFrames == 0){
-                    playerCurrStart = 0;
-                    playerCurrEnd = 28;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 1){
-                    playerCurrStart = 28;
-                    playerCurrEnd = 28;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 2){
-                    playerCurrStart = 56;
-                    playerCurrEnd = 28;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 3){
-                    playerCurrStart = 84;
-                    playerCurrEnd = 32;
-                    playerOffset = 11;
-                }
-            }
-        }
-        else if(lastDirectionRef.current == 'right'){
-            if (chars == 1){
-                player.src = player1Images.idle.R
-                if(playerIdleFrames == 0){
-                    playerCurrStart = 0;
-                    playerCurrEnd = 36;
-                    playerOffset = 11;
-                }
-                else if (playerIdleFrames == 1){
-                    playerCurrStart = 36;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 2){
-                    playerCurrStart = 68;
-                    playerCurrEnd = 28;
-                    playerOffset = 7;
-                }
-                else if (playerIdleFrames == 3){
-                    playerCurrStart = 96;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-            }else if (chars == 2){
-                player.src = player2Images.idle.R
-                if(playerIdleFrames == 0){
-                    playerCurrStart = 0;
-                    playerCurrEnd = 36;
-                    playerOffset = 11;
-                }
-                else if (playerIdleFrames == 1){
-                    playerCurrStart = 36;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 2){
-                    playerCurrStart = 68;
-                    playerCurrEnd = 28 ;
-                    playerOffset = 7;
-                }
-                else if (playerIdleFrames == 3){
-                    playerCurrStart = 96;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-            }else if (chars == 3){
-                player.src = player3Images.idle.R
-                if(playerIdleFrames == 0){
-                    playerCurrStart = 0;
-                    playerCurrEnd = 32;
-                    playerOffset = 11;
-                }
-                else if (playerIdleFrames == 1){
-                    playerCurrStart = 32;
-                    playerCurrEnd = 28;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 2){
-                    playerCurrStart = 60;
-                    playerCurrEnd = 28;
-                    playerOffset = 9;
-                }
-                else if (playerIdleFrames == 3){
-                    playerCurrStart = 88;
-                    playerCurrEnd = 28;
-                    playerOffset = 9;
-                }
-            }
-        }
-      }
-      else {
-        const playerBox = {
-          left: playerWorld.current.x - playerOffset,
-          right: playerWorld.current.x - playerOffset + 36,
-          top: playerWorld.current.y - (player.height || 48) / 2,
-          bottom: playerWorld.current.y - (player.height || 48) / 2 + (player.height || 48)
-        };
-
-        if(keys.current.w.isPressed && lastDirectionRef.current === 'up'){
-          isMovingRef.current = true;
-          const nextTop = playerBox.top - speed.current * (delta / 16.67);
-          const nextBottom = playerBox.bottom - speed.current * (delta / 16.67);
-          for(let i = 0; i < boundaries.length; i++){
-            const boundary = boundaries[i];
-            if(
-              playerBox.right > boundary.position.x &&
-              playerBox.left < boundary.position.x + boundary.width &&
-              nextTop < boundary.position.y + boundary.height &&
-              nextBottom > boundary.position.y
-            ){
-              isMovingRef.current = false;
-              break;
-            }
-          }
-          canBath = canSnake = canDodge = canEat = canSleep = false;
-          for(let i = 0; i < bath.length; i++){
-            const bathDetect = bath[i];
-            if(
-                playerBox.right > bathDetect.position.x &&
-                playerBox.left < bathDetect.position.x + bathDetect.width &&
-                playerBox.top < bathDetect.position.y + bathDetect.height &&
-                playerBox.bottom > bathDetect.position.y
-            ){
-                canBath = true;
-                break;
-            }
-          }
-          for(let i = 0; i < bath.length; i++){
-            const bathDetect = bath[i];
-            if(
-              playerBox.right > bathDetect.position.x &&
-              playerBox.left < bathDetect.position.x + bathDetect.width &&
-              playerBox.top < bathDetect.position.y + bathDetect.height &&
-              playerBox.bottom > bathDetect.position.y
-            ){
-              canBath = true;
-              break;
-            }
-          }
-          for(let i = 0; i < snake.length; i++){
-            const snakeDetect = snake[i];
-            if(
-              playerBox.right > snakeDetect.position.x &&
-              playerBox.left < snakeDetect.position.x + snakeDetect.width &&
-              playerBox.top < snakeDetect.position.y + snakeDetect.height &&
-              playerBox.bottom > snakeDetect.position.y
-            ){
-              canSnake = true;
-              break;
-            }
-          }
-          for(let i = 0; i < dodge.length; i++){
-            const dodgeDetect = dodge[i];
-            if(
-              playerBox.right > dodgeDetect.position.x &&
-              playerBox.left < dodgeDetect.position.x + dodgeDetect.width &&
-              playerBox.top < dodgeDetect.position.y + dodgeDetect.height &&
-              playerBox.bottom > dodgeDetect.position.y
-            ){
-              canDodge = true;
-              break;
-            }
-          }
-          for(let i = 0; i < eat.length; i++){
-            const eatDetect = eat[i];
-            if(
-              playerBox.right > eatDetect.position.x &&
-              playerBox.left < eatDetect.position.x + eatDetect.width &&
-              playerBox.top < eatDetect.position.y + eatDetect.height &&
-              playerBox.bottom > eatDetect.position.y
-            ){
-              canEat = true;
-              break;
-            }
-          }
-          for(let i = 0; i < sleep.length; i++){
-            const sleepDetect = sleep[i];
-            if(
-              playerBox.right > sleepDetect.position.x &&
-              playerBox.left < sleepDetect.position.x + sleepDetect.width &&
-              playerBox.top < sleepDetect.position.y + sleepDetect.height &&
-              playerBox.bottom > sleepDetect.position.y
-            ){
-              canSleep = true;
-              break;
-            }
-          }
-          if(isMovingRef.current){
-              playerWorld.current.y -= speed.current * (delta / 16.67);
-          }
-          if(chars == 1){
-            player.src = player1Images.run.U;
-            if(playerMovingFrames == 0){
-              playerCurrStart = 0;
-              playerCurrEnd = 34;
-              playerOffset = 11;
-            }
-            else if(playerMovingFrames == 1){
-              playerCurrStart = 34;
-              playerCurrEnd = 34;
-              playerOffset = 12;
-            }
-            else if(playerMovingFrames == 2){
-              playerCurrStart = 68;
-              playerCurrEnd = 34;
-              playerOffset = 11;
-            }
-            else if(playerMovingFrames == 3){
-              playerCurrStart = 102;
-              playerCurrEnd = 34;
-              playerOffset = 9;
-            }
-            else if (playerMovingFrames == 4){
-              playerCurrStart = 136;
-              playerCurrEnd = 34;
-              playerOffset = 8;
-            }
-            else if (playerMovingFrames == 5){
-              playerCurrStart = 170;
-              playerCurrEnd = 34;
-              playerOffset = 9;
-            }
-          }else if(chars == 2){
-            player.src = player2Images.run.U;
-            if(playerMovingFrames == 0){
-              playerCurrStart = 0;
-              playerCurrEnd = 34;
-              playerOffset = 11;
-            }
-            else if(playerMovingFrames == 1){
-              playerCurrStart = 34;
-              playerCurrEnd = 34;
-              playerOffset = 12;
-            }
-            else if(playerMovingFrames == 2){
-              playerCurrStart = 68;
-              playerCurrEnd = 34;
-              playerOffset = 11;
-            }
-            else if(playerMovingFrames == 3){
-              playerCurrStart = 102;
-              playerCurrEnd = 34;
-              playerOffset = 9;
-            }
-            else if (playerMovingFrames == 4){
-              playerCurrStart = 136;
-              playerCurrEnd = 34;
-              playerOffset = 8;
-            }
-            else if (playerMovingFrames == 5){
-              playerCurrStart = 170;
-              playerCurrEnd = 34;
-              playerOffset = 9;
-            }
-          }
-          else if(chars == 3){
-            player.src = player3Images.run.U;
-            if(playerMovingFrames == 0){
-              playerCurrStart = 0;
-              playerCurrEnd = 34;
-              playerOffset = 11;
-            }
-            else if(playerMovingFrames == 1){
-              playerCurrStart = 34;
-              playerCurrEnd = 34;
-              playerOffset = 12;
-            }
-            else if(playerMovingFrames == 2){
-              playerCurrStart = 68;
-              playerCurrEnd = 34;
-              playerOffset = 11;
-            }
-            else if(playerMovingFrames == 3){
-              playerCurrStart = 102;
-              playerCurrEnd = 34;
-              playerOffset = 9;
-            }
-            else if (playerMovingFrames == 4){
-              playerCurrStart = 136;
-              playerCurrEnd = 34;
-              playerOffset = 8;
-            }
-            else if (playerMovingFrames == 5){
-              playerCurrStart = 170;
-              playerCurrEnd = 34;
-              playerOffset = 9;
-            }
-          }
-        }
-        else if(keys.current.s.isPressed && lastDirectionRef.current === 'down'){
-          isMovingRef.current = true;
-          const nextTop = playerBox.top + speed.current * (delta / 16.67);
-          const nextBottom = playerBox.bottom + speed.current * (delta / 16.67);
-          for(let i = 0; i < boundaries.length; i++){
-            const boundary = boundaries[i];
-            if(
-              playerBox.right > boundary.position.x &&
-              playerBox.left < boundary.position.x + boundary.width &&
-              nextTop < boundary.position.y + boundary.height &&
-              nextBottom > boundary.position.y
-            ){
-              isMovingRef.current = false;
-              break;
-            }
-          }
-          canBath = canSnake = canDodge = canEat = canSleep = false;
-          for(let i = 0; i < bath.length; i++){
-            const bathDetect = bath[i];
-            if(
-              playerBox.right > bathDetect.position.x &&
-              playerBox.left < bathDetect.position.x + bathDetect.width &&
-              playerBox.top < bathDetect.position.y + bathDetect.height &&
-              playerBox.bottom > bathDetect.position.y
-            ){
-              canBath = true;
-              break;
-            }
-          }
-          for(let i = 0; i < snake.length; i++){
-            const snakeDetect = snake[i];
-            if(
-              playerBox.right > snakeDetect.position.x &&
-              playerBox.left < snakeDetect.position.x + snakeDetect.width &&
-              playerBox.top < snakeDetect.position.y + snakeDetect.height &&
-              playerBox.bottom > snakeDetect.position.y
-            ){
-              canSnake = true;
-              break;
-            }
-          }
-          for(let i = 0; i < dodge.length; i++){
-            const dodgeDetect = dodge[i];
-            if(
-              playerBox.right > dodgeDetect.position.x &&
-              playerBox.left < dodgeDetect.position.x + dodgeDetect.width &&
-              playerBox.top < dodgeDetect.position.y + dodgeDetect.height &&
-              playerBox.bottom > dodgeDetect.position.y
-            ){
-              canDodge = true;
-              break;
-            }
-          }
-          for(let i = 0; i < eat.length; i++){
-            const eatDetect = eat[i];
-            if(
-              playerBox.right > eatDetect.position.x &&
-              playerBox.left < eatDetect.position.x + eatDetect.width &&
-              playerBox.top < eatDetect.position.y + eatDetect.height &&
-              playerBox.bottom > eatDetect.position.y
-            ){
-              canEat = true;
-              break;
-            }
-          }
-          for(let i = 0; i < sleep.length; i++){
-            const sleepDetect = sleep[i];
-            if(
-              playerBox.right > sleepDetect.position.x &&
-              playerBox.left < sleepDetect.position.x + sleepDetect.width &&
-              playerBox.top < sleepDetect.position.y + sleepDetect.height &&
-              playerBox.bottom > sleepDetect.position.y
-            ){
-              canSleep = true;
-              break;
-            }
-          }
-          if(isMovingRef.current){
-                playerWorld.current.y += speed.current * (delta / 16.67);
-          }
-          if(chars == 1){
-                player.src = player1Images.run.D;
-                if(playerMovingFrames == 0){
-                    playerCurrStart = 0;
-                    playerCurrEnd = 30;
-                    playerOffset = 9;
-                }
-                else if(playerMovingFrames == 1){
-                    playerCurrStart = 30;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-                else if(playerMovingFrames == 2){
-                    playerCurrStart = 62; 
-                    playerCurrEnd = 30;
-                    playerOffset = 9;
-                }
-                else if(playerMovingFrames == 3){
-                    playerCurrStart = 92;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-                else if (playerMovingFrames == 4){
-                    playerCurrStart = 124;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-                else if (playerMovingFrames == 5){
-                    playerCurrStart = 156;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-            }else if(chars == 2){
-                player.src = player2Images.run.D;
-                if(playerMovingFrames == 0){
-                    playerCurrStart = 0;
-                    playerCurrEnd = 30;
-                    playerOffset = 9;
-                }
-                else if(playerMovingFrames == 1){
-                    playerCurrStart = 30;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-                else if(playerMovingFrames == 2){
-                    playerCurrStart = 62; 
-                    playerCurrEnd = 30;
-                    playerOffset = 9;
-                }
-                else if(playerMovingFrames == 3){
-                    playerCurrStart = 92;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-                else if (playerMovingFrames == 4){
-                    playerCurrStart = 124;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-                else if (playerMovingFrames == 5){
-                    playerCurrStart = 156;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-            }else if(chars == 3){
-                player.src = player3Images.run.D;
-                if(playerMovingFrames == 0){
-                    playerCurrStart = 0;
-                    playerCurrEnd = 30;
-                    playerOffset = 9;
-                }
-                else if(playerMovingFrames == 1){
-                    playerCurrStart = 30;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-                else if(playerMovingFrames == 2){
-                    playerCurrStart = 62; 
-                    playerCurrEnd = 30;
-                    playerOffset = 9;
-                }
-                else if(playerMovingFrames == 3){
-                    playerCurrStart = 92;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-                else if (playerMovingFrames == 4){
-                    playerCurrStart = 124;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-                else if (playerMovingFrames == 5){
-                    playerCurrStart = 156;
-                    playerCurrEnd = 32;
-                    playerOffset = 9;
-                }
-            }
-        }
-        else if(keys.current.a.isPressed && lastDirectionRef.current === 'left'){
-          isMovingRef.current = true;
-          const nextLeft = playerBox.left - speed.current * (delta / 16.67);
-          const nextRight = playerBox.right - speed.current * (delta / 16.67);
-          for(let i = 0; i < boundaries.length; i++){
-            const boundary = boundaries[i];
-            if(
-              nextRight > boundary.position.x &&
-              nextLeft < boundary.position.x + boundary.width &&
-              playerBox.top < boundary.position.y + boundary.height &&
-              playerBox.bottom > boundary.position.y
-            ){
-              isMovingRef.current = false;
-              break;
-            }
-          }
-          canBath = canSnake = canDodge = canEat = canSleep = false;
-          for(let i = 0; i < bath.length; i++){
-            const bathDetect = bath[i];
-            if(
-              playerBox.right > bathDetect.position.x &&
-              playerBox.left < bathDetect.position.x + bathDetect.width &&
-              playerBox.top < bathDetect.position.y + bathDetect.height &&
-              playerBox.bottom > bathDetect.position.y
-            ){
-              canBath = true;
-              break;
-            }
-          }
-          for(let i = 0; i < snake.length; i++){
-            const snakeDetect = snake[i];
-            if(
-              playerBox.right > snakeDetect.position.x &&
-              playerBox.left < snakeDetect.position.x + snakeDetect.width &&
-              playerBox.top < snakeDetect.position.y + snakeDetect.height &&
-              playerBox.bottom > snakeDetect.position.y
-            ){
-              canSnake = true;
-              break;
-            }
-          }
-          for(let i = 0; i < dodge.length; i++){
-            const dodgeDetect = dodge[i];
-            if(
-              playerBox.right > dodgeDetect.position.x &&
-              playerBox.left < dodgeDetect.position.x + dodgeDetect.width &&
-              playerBox.top < dodgeDetect.position.y + dodgeDetect.height &&
-              playerBox.bottom > dodgeDetect.position.y
-            ){
-              canDodge = true;
-              break;
-            }
-          }
-          for(let i = 0; i < eat.length; i++){
-            const eatDetect = eat[i];
-            if(
-              playerBox.right > eatDetect.position.x &&
-              playerBox.left < eatDetect.position.x + eatDetect.width &&
-              playerBox.top < eatDetect.position.y + eatDetect.height &&
-              playerBox.bottom > eatDetect.position.y
-            ){
-              canEat = true;
-              break;
-            }
-          }
-          for(let i = 0; i < sleep.length; i++){
-            const sleepDetect = sleep[i];
-            if(
-              playerBox.right > sleepDetect.position.x &&
-              playerBox.left < sleepDetect.position.x + sleepDetect.width &&
-              playerBox.top < sleepDetect.position.y + sleepDetect.height &&
-              playerBox.bottom > sleepDetect.position.y
-            ){
-              canSleep = true;
-              break;
-            }
-          }
-          if(isMovingRef.current){
-                playerWorld.current.x -= speed.current * (delta / 16.67);
-          }
-          
-          if(chars == 1){
-                player.src = player1Images.run.L;
-                if(playerMovingFrames == 0){
-                    playerCurrStart = 0;
-                    playerCurrEnd = 24;
-                    playerOffset = 7;
-                }
-                else if(playerMovingFrames == 1){
-                    playerCurrStart = 24;
-                    playerCurrEnd = 30;
-                    playerOffset = 9;
-                }
-                else if(playerMovingFrames == 2){
-                    playerCurrStart = 54;
-                    playerCurrEnd = 36;
-                    playerOffset = 11;
-                }
-                else if(playerMovingFrames == 3){
-                    playerCurrStart = 90;
-                    playerCurrEnd = 30;
-                    playerOffset = 9;
-                }
-                else if (playerMovingFrames == 4){
-                    playerCurrStart = 120;
-                    playerCurrEnd = 28;
-                    playerOffset = 7;
-                }
-                else if (playerMovingFrames == 5){
-                    playerCurrStart = 148;
-                    playerCurrEnd = 26;
-                    playerOffset = 7;
-                }
-            }else if(chars == 2){
-                player.src = player2Images.run.L;
-                if(playerMovingFrames == 0){
-                    playerCurrStart = 0;
-                    playerCurrEnd = 24;
-                    playerOffset = 7;
-                }
-                else if(playerMovingFrames == 1){
-                    playerCurrStart = 24;
-                    playerCurrEnd = 30;
-                    playerOffset = 9;
-                }
-                else if(playerMovingFrames == 2){
-                    playerCurrStart = 54;
-                    playerCurrEnd = 36;
-                    playerOffset = 11;
-                }
-                else if(playerMovingFrames == 3){
-                    playerCurrStart = 90;
-                    playerCurrEnd = 30;
-                    playerOffset = 9;
-                }
-                else if (playerMovingFrames == 4){
-                    playerCurrStart = 120;
-                    playerCurrEnd = 28;
-                    playerOffset = 7;
-                }
-                else if (playerMovingFrames == 5){
-                    playerCurrStart = 148;
-                    playerCurrEnd = 26;
-                    playerOffset = 7;
-                }
-            }else if(chars == 3){
-                player.src = player3Images.run.L;
-                if(playerMovingFrames == 0){
-                    playerCurrStart = 0;
-                    playerCurrEnd = 24;
-                    playerOffset = 7;
-                }
-                else if(playerMovingFrames == 1){
-                    playerCurrStart = 24;
-                    playerCurrEnd = 30;
-                    playerOffset = 9;
-                }
-                else if(playerMovingFrames == 2){
-                    playerCurrStart = 54;
-                    playerCurrEnd = 36;
-                    playerOffset = 11;
-                }
-                else if(playerMovingFrames == 3){
-                    playerCurrStart = 90;
-                    playerCurrEnd = 30;
-                    playerOffset = 9;
-                }
-                else if (playerMovingFrames == 4){
-                    playerCurrStart = 120;
-                    playerCurrEnd = 28;
-                    playerOffset = 7;
-                }
-                else if (playerMovingFrames == 5){
-                    playerCurrStart = 148;
-                    playerCurrEnd = 28;
-                    playerOffset = 7; 
-                }
-            }
-        }
-        else if(keys.current.d.isPressed && lastDirectionRef.current === 'right'){
-          isMovingRef.current = true;
-          const nextLeft = playerBox.left + speed.current * (delta / 16.67);
-          const nextRight = playerBox.right + speed.current * (delta / 16.67);
-          for(let i = 0; i < boundaries.length; i++){
-            const boundary = boundaries[i];
-            if(
-              nextRight > boundary.position.x &&
-              nextLeft < boundary.position.x + boundary.width &&
-              playerBox.top < boundary.position.y + boundary.height &&
-              playerBox.bottom > boundary.position.y
-            ){
-              isMovingRef.current = false;
-              break;
-            }
-          }
-          canBath = canSnake = canDodge = canEat = canSleep = false;
-          for(let i = 0; i < bath.length; i++){
-            const bathDetect = bath[i];
-            if(
-              playerBox.right > bathDetect.position.x &&
-              playerBox.left < bathDetect.position.x + bathDetect.width &&
-              playerBox.top < bathDetect.position.y + bathDetect.height &&
-              playerBox.bottom > bathDetect.position.y
-            ){
-              canBath = true;
-              break;
-            }
-          }
-          for(let i = 0; i < snake.length; i++){
-            const snakeDetect = snake[i];
-            if(
-              playerBox.right > snakeDetect.position.x &&
-              playerBox.left < snakeDetect.position.x + snakeDetect.width &&
-              playerBox.top < snakeDetect.position.y + snakeDetect.height &&
-              playerBox.bottom > snakeDetect.position.y
-            ){
-              canSnake = true;
-              break;
-            }
-          }
-          for(let i = 0; i < dodge.length; i++){
-            const dodgeDetect = dodge[i];
-            if(
-              playerBox.right > dodgeDetect.position.x &&
-              playerBox.left < dodgeDetect.position.x + dodgeDetect.width &&
-              playerBox.top < dodgeDetect.position.y + dodgeDetect.height &&
-              playerBox.bottom > dodgeDetect.position.y
-            ){
-              canDodge = true;
-              break;
-            }
-          }
-          for(let i = 0; i < eat.length; i++){
-            const eatDetect = eat[i];
-            if(
-              playerBox.right > eatDetect.position.x &&
-              playerBox.left < eatDetect.position.x + eatDetect.width &&
-              playerBox.top < eatDetect.position.y + eatDetect.height &&
-              playerBox.bottom > eatDetect.position.y
-            ){
-              canEat = true;
-              break;
-            }
-          }
-          for(let i = 0; i < sleep.length; i++){
-            const sleepDetect = sleep[i];
-            if(
-              playerBox.right > sleepDetect.position.x &&
-              playerBox.left < sleepDetect.position.x + sleepDetect.width &&
-              playerBox.top < sleepDetect.position.y + sleepDetect.height &&
-              playerBox.bottom > sleepDetect.position.y
-            ){
-              canSleep = true;
-              break;
-            }
-          }
-          if(isMovingRef.current){
-                playerWorld.current.x += speed.current * (delta / 16.67);
-          }
-          
-          if(chars == 1){
-                player.src = player1Images.run.R;
-                if(playerMovingFrames == 0){
-                    playerCurrStart = 150;
-                    playerCurrEnd = 24;
-                    playerOffset = 5;
-                }
-                else if(playerMovingFrames == 1){
-                    playerCurrStart = 120;
-                    playerCurrEnd = 30;
-                    playerOffset = 9;
-                }
-                else if(playerMovingFrames == 2){
-                    playerCurrStart = 84;
-                    playerCurrEnd = 36;
-                    playerOffset = 11;
-                }
-                else if(playerMovingFrames == 3){
-                    playerCurrStart = 54;
-                    playerCurrEnd = 30;
-                    playerOffset = 9;
-                }
-                else if (playerMovingFrames == 4){
-                    playerCurrStart = 26;
-                    playerCurrEnd = 28;
-                    playerOffset = 7;
-                }
-                else if (playerMovingFrames == 5){
-                    playerCurrStart = 0;
-                    playerCurrEnd = 26;
-                    playerOffset = 7;
-                }
-            }else if(chars == 2){
-                player.src = player2Images.run.R;
-                if(playerMovingFrames == 0){
-                    playerCurrStart = 150;
-                    playerCurrEnd = 24;
-                    playerOffset = 5;
-                }
-                else if(playerMovingFrames == 1){
-                    playerCurrStart = 120;
-                    playerCurrEnd = 30;
-                    playerOffset = 11;
-                }
-                else if(playerMovingFrames == 2){
-                    playerCurrStart = 84;
-                    playerCurrEnd = 36;
-                    playerOffset = 9;
-                }
-                else if(playerMovingFrames == 3){
-                    playerCurrStart = 54;
-                    playerCurrEnd = 30;
-                    playerOffset = 9;
-                }
-                else if (playerMovingFrames == 4){
-                    playerCurrStart = 26;
-                    playerCurrEnd = 28;
-                    playerOffset = 7;
-                }
-                else if (playerMovingFrames == 5){
-                    playerCurrStart = 0;
-                    playerCurrEnd = 26;
-                    playerOffset = 7;
-                }
-            }else if(chars == 3){
-                player.src = player3Images.run.R;
-                if(playerMovingFrames == 0){
-                    playerCurrStart = 152;
-                    playerCurrEnd = 24;
-                    playerOffset = 5;
-                }
-                else if(playerMovingFrames == 1){
-                    playerCurrStart = 122;
-                    playerCurrEnd = 30;
-                    playerOffset = 9;
-                }
-                else if(playerMovingFrames == 2){
-                    playerCurrStart = 86;
-                    playerCurrEnd = 36;
-                    playerOffset = 11;
-                }
-                else if(playerMovingFrames == 3){
-                    playerCurrStart = 56;
-                    playerCurrEnd = 30;
-                    playerOffset = 9;
-                }
-                else if (playerMovingFrames == 4){
-                    playerCurrStart = 28;
-                    playerCurrEnd = 28;
-                    playerOffset = 7;
-                }
-                else if (playerMovingFrames == 5){
-                    playerCurrStart = 0;
-                    playerCurrEnd = 28;
-                    playerOffset = 7;
-                }
-            }
-        }
-      }
-
-      if(keys.current.w.isPressed == false && 
-        keys.current.a.isPressed == false && 
-        keys.current.s.isPressed == false && 
-        keys.current.d.isPressed == false)
-      {
-        isMovingRef.current = false;
-      }
-
-      requestAnimationFrame(animation);
-    };
+    
 
     function introAnimation(){
-      c.fillStyle = 'white';
+      const canvas = canvasRef.current;
+      const c = contextRef.current;
+      const intro = introRef.current;
+      c.fillStyle = '#A6B04F';
       c.fillRect(0,0,canvas.width,canvas.height)
       c.drawImage(intro, canvas.width*0.15, canvas.height*0.15, canvas.width*0.7, canvas.width*0.7*0.46)
-      requestAnimationFrame(introAnimation);
+      introAnimationRef.current = requestAnimationFrame(introAnimation);
     }
 
-    animationRef.current = requestAnimationFrame(animation);
-
-    const startGame = ()=>{
-      console.log('start');
-      requestAnimationFrame(introAnimation);
-      window.addEventListener('click', ()=>{
-        cancelAnimationFrame(introAnimation);
-        requestAnimationFrame(animation);
-        setIsStartGame(true)
-      }, {once: true});
-    }
-
-    let imagesLoaded = 0;
-    function checkAllLoaded() {
-      imagesLoaded++;
-      if (imagesLoaded === 4) {
-        startGame;
+    function startGame() {
+      console.log('startGame called');
+      const canvas = canvasRef.current;
+      const c = contextRef.current;
+      if (introAnimationRef.current) {
+        cancelAnimationFrame(introAnimationRef.current);
+        introAnimationRef.current = null;
       }
+      c.clearRect(0, 0, canvas.width, canvas.height);
+      setIsStartGame(true);
     }
-
-    intro.onload = startGame;
   
     function handleKeyDown(e) {
         if (isSnakeActiveRef.current) return;
@@ -1665,13 +1962,22 @@ const Game = (data) => {
     };
   }, []);
 
+  useEffect(() => {
+    if (isStartGame) {
+      animationRef.current = requestAnimationFrame(animation);
+    }
+    return () => {
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    };
+  }, [isStartGame]);
+
   useEffect(()=>{
     dispatch({type: 'changeHour'});
   }, [info.time.hour])
 
   return (
-    <div>
-      <canvas ref={canvasRef} id="game" style={{ display: 'block', background: '#A6B04F' }} />
+    <div style={{ position: 'relative', width: '100vw', height: '100vh' }}>
+      <canvas ref={canvasRef} id="game" style={{ display: 'block', background: '#A6B04F'}} />
       {isStartGame && (
         <div>
           <div id='coinDisplay'>
@@ -1703,6 +2009,12 @@ const Game = (data) => {
           }
           <Navigator onMove={handleNavigatorMove}/>
         </div>
+      )}
+      {isSnakeActive && (
+        <SnakeGame
+          update={dispatch}
+          setIsSnakeActive={updateSnakeActive}
+        />
       )}
     </div>
   );

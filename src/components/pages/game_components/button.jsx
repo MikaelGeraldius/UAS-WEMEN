@@ -83,7 +83,6 @@ export default function buttons(prop){
             {(prop.action != 'dodge' && prop.action != 'eat') && (
                 <img id="buttonImage" onClick={handleClick} src={image.button}/> 
             )}
-            {startSnake && <Snake update = {prop.update} setIsSnakeActive = {prop.setIsSnakeActive}/>}
         </div>
     )
 }

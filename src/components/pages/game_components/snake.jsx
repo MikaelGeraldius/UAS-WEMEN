@@ -34,23 +34,22 @@ export default function SnakeGame(prop) {
         const c = canvas.getContext("2d");
         
         const backToMenu = ()=>{
-            prop.setIsSnakeActive(false);
-            console.log('back to menu');
             clearInterval(intervalRef.current);
-            c.clearRect (0,0,canvas.width,canvas.height);
-            prop.update({type: 'playSnake', score: scoreRef.current})
-            return;
+            window.removeEventListener('click', backToMenu);
+            c.clearRect(0,0,canvas.width,canvas.height);
+            prop.update({type: 'playSnake', score: scoreRef.current});
+            prop.setIsSnakeActive(false);
         }
 
         function gameOver(){
-            prop.setIsSnakeActive(false);
+            clearInterval(intervalRef.current);
+            window.removeEventListener('click', backToMenu);
             c.drawImage(gameOverText, canvas.width/20, canvas.height/4, canvas.width*0.9, 50);
             c.fillStyle = 'white';
             c.font = '15px monospace'
             c.fillText("You received " + scoreRef.current * 10 + " Coins", canvas.width/20, canvas.height*0.8);
             c.fillText("Click screen to continue...", canvas.width/20, canvas.height*0.9);
             window.addEventListener('click', backToMenu, {once:true});
-            clearInterval(intervalRef.current);
         }
         
 
@@ -166,8 +165,9 @@ export default function SnakeGame(prop) {
         return () => {
             window.removeEventListener("resize", resizeCanvas);
             window.removeEventListener("keydown", handleKeyDown);
-            prop.setIsSnakeActive(false);
             window.removeEventListener("snake-navigator", handleNavigator);
+            window.removeEventListener('click', backToMenu);
+            clearInterval(intervalRef.current);
         };
     }, []);
 
