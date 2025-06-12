@@ -5,12 +5,15 @@ import Snake from "./snake.jsx";
 export default function buttons(prop){
     const [ratio, setRatio] = useState({width: 0, height: 0});
     const [image, setImage] = useState({
-        button: 'null',
-        info:'null',
+        button: null,
+        info: null,
     });
     const [startSnake, setStartSnake] = useState(false);
 
+    console.log("canSleep:", prop.canSleep, "canBath:", prop.canBath, "canDodge:", prop.canDodge, "canEat:", prop.canEat, "canSnake:", prop.canSnake);
+
     useEffect(()=>{
+        
         function resizeCanvas (){
             setRatio({
                 width: window.innerWidth,
@@ -46,7 +49,12 @@ export default function buttons(prop){
                 info: Icon.foodMenu
             })
         }
-
+        else {
+            setImage({
+                button: null,
+                info: null
+            });
+        }
     },[prop.action])
 
     const handleClick = (index)=>{
@@ -63,10 +71,12 @@ export default function buttons(prop){
                 prop.update({type: 'goSleep'})
         }
     }
+    console.log("Button image src:", image.button, "Action:", prop.action);
+    console.log("action:", prop.action, "button image:", image.button);
 
     return (
         <div>
-            {(prop.action == 'sleep' && prop.info.time.hour < 20 && prop.info.time.hour > 5) &&
+            {(prop.action == 'sleep' && (prop.info.time.hour < 20 && prop.info.time.hour > 5)) &&
                 <img id="warning" src={Icon.warning.sleep}  />
             }
             {(prop.action == 'snake' || prop.action == 'eat') &&
@@ -80,7 +90,7 @@ export default function buttons(prop){
                     <button id='buttons' style={{opacity: '0', cursor:'pointer'}} onClick={()=>handleClick(3)} src={image.button} alt="Buy">buy</button>
                 </div>
             )}
-            {(prop.action != 'dodge' && prop.action != 'eat') && (
+            {image.button && (prop.action != 'dodge' && prop.action != 'eat') && (
                 <img id="buttonImage" onClick={handleClick} src={image.button}/> 
             )}
         </div>

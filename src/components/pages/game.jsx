@@ -91,12 +91,6 @@ function reducer (info, action){
   }
 }
 
-let canBath = false;
-let canSnake = false;
-let canDodge = false;
-let canEat = false;
-let canSleep = false;
-
 const Game = (data) => {
   const canvasRef = useRef(null);
   const [isStartGame, setIsStartGame] =  useState(false);
@@ -109,7 +103,6 @@ const Game = (data) => {
   const sprintInterval = useRef(100);
   const [isSnakeActive, setIsSnakeActive] = useState(false);
   const isSnakeActiveRef = useRef(isSnakeActive);
-  const wasInSnakeAreaRef = useRef(false);
   const animationRef = useRef();
   const introAnimationRef = useRef();
   const isMovingRef = useRef(false);
@@ -127,6 +120,13 @@ const Game = (data) => {
   const dayRef = useRef(new window.Image());
   const nightRef = useRef(new window.Image());
   const introRef = useRef(new window.Image());
+  const [snakeGameKey, setSnakeGameKey] = useState(0);
+  const [canBath, setCanBath] = useState(false);
+  const [canSnake, setCanSnake] = useState(false);
+  const [canDodge, setCanDodge] = useState(false);
+  const [canEat, setCanEat] = useState(false);
+  const [canSleep, setCanSleep] = useState(false);
+  const prevFastFowardRef = useRef(false);
  
   useEffect(() => {
     isSnakeActiveRef.current = isSnakeActive;
@@ -194,64 +194,46 @@ const Game = (data) => {
   const updateSnakeActive = (val) => {
     setIsSnakeActive(val);
     isSnakeActiveRef.current = val;
+    if (val) {
+      prevFastFowardRef.current = info.isFastFoward;
+      if(info.isFastFoward) dispatch({type: 'fastFoward'});
+      setSnakeGameKey(prevKey => prevKey + 1);
+    }
     if (!val) {
+      if (prevFastFowardRef.current && !info.isFastFoward) dispatch({ type: 'fastFoward' });
       setAction(undefined);
-      wasInSnakeAreaRef.current = false;
-      canSnake = false;
-      const MAX_ITER = 30;
-      let iter = 0;
-      let moved;
-      do {
-        moved = false;
-        for (let i = 0; i < snake.length; i++) {
-          const s = snake[i];
-          const playerBox = {
-            left: playerWorld.current.x - 9,
-            right: playerWorld.current.x - 9 + 36,
-            top: playerWorld.current.y - 24,
-            bottom: playerWorld.current.y - 24 + 48
-          };
-          if (
-            playerBox.right > s.position.x &&
-            playerBox.left < s.position.x + s.width &&
-            playerBox.top < s.position.y + s.height &&
-            playerBox.bottom > s.position.y
-          ) {
-            const distTop = Math.abs(playerBox.top - (s.position.y + s.height));
-            const distBottom = Math.abs(playerBox.bottom - s.position.y);
-            const distLeft = Math.abs(playerBox.left - (s.position.x + s.width));
-            const distRight = Math.abs(playerBox.right - s.position.x);
-
-            const minDist = Math.min(distTop, distBottom, distLeft, distRight);
-
-            const OFFSET = 10;
-
-            if (minDist === distTop) {
-              playerWorld.current.y = s.position.y + s.height + 24 + OFFSET;
-            } else if (minDist === distBottom) {
-              playerWorld.current.y = s.position.y - 24 - OFFSET;
-            } else if (minDist === distLeft) {
-              playerWorld.current.x = s.position.x + s.width + 9 + OFFSET;
-            } else if (minDist === distRight) {
-              playerWorld.current.x = s.position.x - 36 + 9 - OFFSET;
-            }
-            moved = true;
-            break; // break to recalculate playerBox in the next iteration
-          }
+      setCanSnake(false);
+      keys.current.w.isPressed = false;
+      keys.current.a.isPressed = false;
+      keys.current.s.isPressed = false;
+      keys.current.d.isPressed = false;
+      isMovingRef.current = false;
+      const OFFSET = 10;
+      for (let i = 0; i < snake.length; i++) {
+        const s = snake[i];
+        const playerBox = {
+          left: playerWorld.current.x - 9,
+          right: playerWorld.current.x - 9 + 36,
+          top: playerWorld.current.y - 24,
+          bottom: playerWorld.current.y - 24 + 48
+        };
+        if (
+          playerBox.right > s.position.x &&
+          playerBox.left < s.position.x + s.width &&
+          playerBox.top < s.position.y + s.height &&
+          playerBox.bottom > s.position.y
+        ) {
+          // Always exit to the right
+          playerWorld.current.x = s.position.x + s.width + 9 + OFFSET;
+          break;
         }
-        iter++;
-      } while (moved && iter < MAX_ITER);
-
-      // Log the new position
-      console.log("Player moved to:", playerWorld.current);
-
-      // Resume animation
-      if (animationRef.current) {
-        requestAnimationFrame(animation);
       }
-
+    }
+    if (animationRef.current) {
       requestAnimationFrame(animation);
     }
+
+    requestAnimationFrame(animation);
   };
 
   collisionsMap.forEach((row, i) => {
@@ -429,74 +411,86 @@ const Game = (data) => {
       );
     }
 
-      c.save();
-      c.strokeStyle = 'red';
-      boundaries.forEach(boundary => {
-          c.strokeRect(
-              boundary.position.x + cameraOffsetX,
-              boundary.position.y + cameraOffsetY,
-              boundary.width,
-              boundary.height
-          );
-      });
-      c.restore();
-      c.save();
-      c.strokeStyle = 'green';
-      snake.forEach(boundary => {
-          c.strokeRect(
-              boundary.position.x + cameraOffsetX,
-              boundary.position.y + cameraOffsetY,
-              boundary.width,
-              boundary.height
-          );
-      });
-      c.restore();
-      c.save();
-      c.strokeStyle = 'brown';
-      dodge.forEach(boundary => {
-          c.strokeRect(
-              boundary.position.x + cameraOffsetX,
-              boundary.position.y + cameraOffsetY,
-              boundary.width,
-              boundary.height
-          );
-      });
-      c.restore();
-      c.save();
-      c.strokeStyle = 'white';
-      sleep.forEach(boundary => {
-          c.strokeRect(
-              boundary.position.x + cameraOffsetX,
-              boundary.position.y + cameraOffsetY,
-              boundary.width,
-              boundary.height
-          );
-      });
-      c.restore();
-      c.save();
-      c.strokeStyle = 'blue';
-      bath.forEach(boundary => {
-          c.strokeRect(
-              boundary.position.x + cameraOffsetX,
-              boundary.position.y + cameraOffsetY,
-              boundary.width,
-              boundary.height
-          );
-      });
-      c.restore();
-      c.save();
-      c.strokeStyle = 'yellow';
-      eat.forEach(boundary => {
-          c.strokeRect(
-              boundary.position.x + cameraOffsetX,
-              boundary.position.y + cameraOffsetY,
-              boundary.width,
-              boundary.height
-          );
-      });
-      c.restore();
-    
-    
+    const playerBox = {
+      left: playerWorld.current.x - playerOffset,
+      right: playerWorld.current.x - playerOffset + 36,
+      top: playerWorld.current.y - (player.height || 48) / 2,
+      bottom: playerWorld.current.y - (player.height || 48) / 2 + (player.height || 48)
+    };
+
+    let localCanBath = false;
+    let localCanSnake = false;
+    let localCanDodge = false;
+    let localCanEat = false;
+    let localCanSleep = false;
+
+    for(let i = 0; i < bath.length; i++){
+      const bathDetect = bath[i];
+      if(
+        playerBox.right > bathDetect.position.x &&
+        playerBox.left < bathDetect.position.x + bathDetect.width &&
+        playerBox.top < bathDetect.position.y + bathDetect.height &&
+        playerBox.bottom > bathDetect.position.y
+      ){
+        localCanBath = true;
+        break;
+      }
+    }
+    for(let i = 0; i < snake.length; i++){
+      const snakeDetect = snake[i];
+      if(
+        playerBox.right > snakeDetect.position.x &&
+        playerBox.left < snakeDetect.position.x + snakeDetect.width &&
+        playerBox.top < snakeDetect.position.y + snakeDetect.height &&
+        playerBox.bottom > snakeDetect.position.y
+      ){
+        localCanSnake = true;
+        break;
+      }
+    }
+    for(let i = 0; i < dodge.length; i++){
+      const dodgeDetect = dodge[i];
+      if(
+        playerBox.right > dodgeDetect.position.x &&
+        playerBox.left < dodgeDetect.position.x + dodgeDetect.width &&
+        playerBox.top < dodgeDetect.position.y + dodgeDetect.height &&
+        playerBox.bottom > dodgeDetect.position.y
+      ){
+        localCanDodge = true;
+        break;
+      }
+    }
+    for(let i = 0; i < eat.length; i++){
+      const eatDetect = eat[i];
+      if(
+        playerBox.right > eatDetect.position.x &&
+        playerBox.left < eatDetect.position.x + eatDetect.width &&
+        playerBox.top < eatDetect.position.y + eatDetect.height &&
+        playerBox.bottom > eatDetect.position.y
+      ){
+        localCanEat = true;
+        break;
+      }
+    }
+    for(let i = 0; i < sleep.length; i++){
+      const sleepDetect = sleep[i];
+      if(
+        playerBox.right > sleepDetect.position.x &&
+        playerBox.left < sleepDetect.position.x + sleepDetect.width &&
+        playerBox.top < sleepDetect.position.y + sleepDetect.height &&
+        playerBox.bottom > sleepDetect.position.y
+      ){
+        localCanSleep = true;
+        break;
+      }
+    }
+
+    setCanBath(localCanBath);
+    setCanSnake(localCanSnake);
+    setCanDodge(localCanDodge);
+    setCanEat(localCanEat);
+    setCanSleep(localCanSleep);
+
 
     if (canSleep){
       setAction("sleep");
@@ -507,14 +501,12 @@ const Game = (data) => {
     else if (canBath){
       setAction('bath');
     }
-    if (canSnake &&
-        !wasInSnakeAreaRef.current &&
-        action !== 'snake' &&
-        !isSnakeActiveRef.current)
-    {
-      setAction('snake');
+    else if (canSnake && !isSnakeActiveRef.current) {
+      currentAction = "snake";
     }
-    wasInSnakeAreaRef.current = canSnake;
+    else {
+      setAction(null);
+    }
 
     if(!isMovingRef.current){
       if(lastDirectionRef.current == 'up'){
@@ -861,79 +853,6 @@ const Game = (data) => {
             break;
           }
         }
-        canBath = canSnake = canDodge = canEat = canSleep = false;
-        for(let i = 0; i < bath.length; i++){
-          const bathDetect = bath[i];
-          if(
-              playerBox.right > bathDetect.position.x &&
-              playerBox.left < bathDetect.position.x + bathDetect.width &&
-              playerBox.top < bathDetect.position.y + bathDetect.height &&
-              playerBox.bottom > bathDetect.position.y
-          ){
-              canBath = true;
-              break;
-          }
-        }
-        for(let i = 0; i < bath.length; i++){
-          const bathDetect = bath[i];
-          if(
-            playerBox.right > bathDetect.position.x &&
-            playerBox.left < bathDetect.position.x + bathDetect.width &&
-            playerBox.top < bathDetect.position.y + bathDetect.height &&
-            playerBox.bottom > bathDetect.position.y
-          ){
-            canBath = true;
-            break;
-          }
-        }
-        for(let i = 0; i < snake.length; i++){
-          const snakeDetect = snake[i];
-          if(
-            playerBox.right > snakeDetect.position.x &&
-            playerBox.left < snakeDetect.position.x + snakeDetect.width &&
-            playerBox.top < snakeDetect.position.y + snakeDetect.height &&
-            playerBox.bottom > snakeDetect.position.y
-          ){
-            canSnake = true;
-            break;
-          }
-        }
-        for(let i = 0; i < dodge.length; i++){
-          const dodgeDetect = dodge[i];
-          if(
-            playerBox.right > dodgeDetect.position.x &&
-            playerBox.left < dodgeDetect.position.x + dodgeDetect.width &&
-            playerBox.top < dodgeDetect.position.y + dodgeDetect.height &&
-            playerBox.bottom > dodgeDetect.position.y
-          ){
-            canDodge = true;
-            break;
-          }
-        }
-        for(let i = 0; i < eat.length; i++){
-          const eatDetect = eat[i];
-          if(
-            playerBox.right > eatDetect.position.x &&
-            playerBox.left < eatDetect.position.x + eatDetect.width &&
-            playerBox.top < eatDetect.position.y + eatDetect.height &&
-            playerBox.bottom > eatDetect.position.y
-          ){
-            canEat = true;
-            break;
-          }
-        }
-        for(let i = 0; i < sleep.length; i++){
-          const sleepDetect = sleep[i];
-          if(
-            playerBox.right > sleepDetect.position.x &&
-            playerBox.left < sleepDetect.position.x + sleepDetect.width &&
-            playerBox.top < sleepDetect.position.y + sleepDetect.height &&
-            playerBox.bottom > sleepDetect.position.y
-          ){
-            canSleep = true;
-            break;
-          }
-        }
         if(isMovingRef.current){
             playerWorld.current.y -= speed.current * (delta / 16.67);
         }
@@ -1090,67 +1009,6 @@ const Game = (data) => {
                 playerOffsetRef.current = 5;
               }
             }
-            break;
-          }
-        }
-        canBath = canSnake = canDodge = canEat = canSleep = false;
-        for(let i = 0; i < bath.length; i++){
-          const bathDetect = bath[i];
-          if(
-            playerBox.right > bathDetect.position.x &&
-            playerBox.left < bathDetect.position.x + bathDetect.width &&
-            playerBox.top < bathDetect.position.y + bathDetect.height &&
-            playerBox.bottom > bathDetect.position.y
-          ){
-            canBath = true;
-            break;
-          }
-        }
-        for(let i = 0; i < snake.length; i++){
-          const snakeDetect = snake[i];
-          if(
-            playerBox.right > snakeDetect.position.x &&
-            playerBox.left < snakeDetect.position.x + snakeDetect.width &&
-            playerBox.top < snakeDetect.position.y + snakeDetect.height &&
-            playerBox.bottom > snakeDetect.position.y
-          ){
-            canSnake = true;
-            break;
-          }
-        }
-        for(let i = 0; i < dodge.length; i++){
-          const dodgeDetect = dodge[i];
-          if(
-            playerBox.right > dodgeDetect.position.x &&
-            playerBox.left < dodgeDetect.position.x + dodgeDetect.width &&
-            playerBox.top < dodgeDetect.position.y + dodgeDetect.height &&
-            playerBox.bottom > dodgeDetect.position.y
-          ){
-            canDodge = true;
-            break;
-          }
-        }
-        for(let i = 0; i < eat.length; i++){
-          const eatDetect = eat[i];
-          if(
-            playerBox.right > eatDetect.position.x &&
-            playerBox.left < eatDetect.position.x + eatDetect.width &&
-            playerBox.top < eatDetect.position.y + eatDetect.height &&
-            playerBox.bottom > eatDetect.position.y
-          ){
-            canEat = true;
-            break;
-          }
-        }
-        for(let i = 0; i < sleep.length; i++){
-          const sleepDetect = sleep[i];
-          if(
-            playerBox.right > sleepDetect.position.x &&
-            playerBox.left < sleepDetect.position.x + sleepDetect.width &&
-            playerBox.top < sleepDetect.position.y + sleepDetect.height &&
-            playerBox.bottom > sleepDetect.position.y
-          ){
-            canSleep = true;
             break;
           }
         }
@@ -1315,67 +1173,6 @@ const Game = (data) => {
             break;
           }
         }
-        canBath = canSnake = canDodge = canEat = canSleep = false;
-        for(let i = 0; i < bath.length; i++){
-          const bathDetect = bath[i];
-          if(
-            playerBox.right > bathDetect.position.x &&
-            playerBox.left < bathDetect.position.x + bathDetect.width &&
-            playerBox.top < bathDetect.position.y + bathDetect.height &&
-            playerBox.bottom > bathDetect.position.y
-          ){
-            canBath = true;
-            break;
-          }
-        }
-        for(let i = 0; i < snake.length; i++){
-          const snakeDetect = snake[i];
-          if(
-            playerBox.right > snakeDetect.position.x &&
-            playerBox.left < snakeDetect.position.x + snakeDetect.width &&
-            playerBox.top < snakeDetect.position.y + snakeDetect.height &&
-            playerBox.bottom > snakeDetect.position.y
-          ){
-            canSnake = true;
-            break;
-          }
-        }
-        for(let i = 0; i < dodge.length; i++){
-          const dodgeDetect = dodge[i];
-          if(
-            playerBox.right > dodgeDetect.position.x &&
-            playerBox.left < dodgeDetect.position.x + dodgeDetect.width &&
-            playerBox.top < dodgeDetect.position.y + dodgeDetect.height &&
-            playerBox.bottom > dodgeDetect.position.y
-          ){
-            canDodge = true;
-            break;
-          }
-        }
-        for(let i = 0; i < eat.length; i++){
-          const eatDetect = eat[i];
-          if(
-            playerBox.right > eatDetect.position.x &&
-            playerBox.left < eatDetect.position.x + eatDetect.width &&
-            playerBox.top < eatDetect.position.y + eatDetect.height &&
-            playerBox.bottom > eatDetect.position.y
-          ){
-            canEat = true;
-            break;
-          }
-        }
-        for(let i = 0; i < sleep.length; i++){
-          const sleepDetect = sleep[i];
-          if(
-            playerBox.right > sleepDetect.position.x &&
-            playerBox.left < sleepDetect.position.x + sleepDetect.width &&
-            playerBox.top < sleepDetect.position.y + sleepDetect.height &&
-            playerBox.bottom > sleepDetect.position.y
-          ){
-            canSleep = true;
-            break;
-          }
-        }
         if(isMovingRef.current){
               playerWorld.current.x -= speed.current * (delta / 16.67);
         }
@@ -1535,67 +1332,6 @@ const Game = (data) => {
                 playerOffsetRef.current = 5;
               }
             }
-            break;
-          }
-        }
-        canBath = canSnake = canDodge = canEat = canSleep = false;
-        for(let i = 0; i < bath.length; i++){
-          const bathDetect = bath[i];
-          if(
-            playerBox.right > bathDetect.position.x &&
-            playerBox.left < bathDetect.position.x + bathDetect.width &&
-            playerBox.top < bathDetect.position.y + bathDetect.height &&
-            playerBox.bottom > bathDetect.position.y
-          ){
-            canBath = true;
-            break;
-          }
-        }
-        for(let i = 0; i < snake.length; i++){
-          const snakeDetect = snake[i];
-          if(
-            playerBox.right > snakeDetect.position.x &&
-            playerBox.left < snakeDetect.position.x + snakeDetect.width &&
-            playerBox.top < snakeDetect.position.y + snakeDetect.height &&
-            playerBox.bottom > snakeDetect.position.y
-          ){
-            canSnake = true;
-            break;
-          }
-        }
-        for(let i = 0; i < dodge.length; i++){
-          const dodgeDetect = dodge[i];
-          if(
-            playerBox.right > dodgeDetect.position.x &&
-            playerBox.left < dodgeDetect.position.x + dodgeDetect.width &&
-            playerBox.top < dodgeDetect.position.y + dodgeDetect.height &&
-            playerBox.bottom > dodgeDetect.position.y
-          ){
-            canDodge = true;
-            break;
-          }
-        }
-        for(let i = 0; i < eat.length; i++){
-          const eatDetect = eat[i];
-          if(
-            playerBox.right > eatDetect.position.x &&
-            playerBox.left < eatDetect.position.x + eatDetect.width &&
-            playerBox.top < eatDetect.position.y + eatDetect.height &&
-            playerBox.bottom > eatDetect.position.y
-          ){
-            canEat = true;
-            break;
-          }
-        }
-        for(let i = 0; i < sleep.length; i++){
-          const sleepDetect = sleep[i];
-          if(
-            playerBox.right > sleepDetect.position.x &&
-            playerBox.left < sleepDetect.position.x + sleepDetect.width &&
-            playerBox.top < sleepDetect.position.y + sleepDetect.height &&
-            playerBox.bottom > sleepDetect.position.y
-          ){
-            canSleep = true;
             break;
           }
         }
@@ -1863,16 +1599,6 @@ const Game = (data) => {
         playerIdleFramesRef.current = (playerIdleFramesRef.current + 1) % 4;
     }, 150);
 
-    function startSprint() {
-      if (movingInterval.current) clearInterval(movingInterval.current);
-      movingInterval.current = setInterval(() => {
-        playerMovingFramesRef.current = (playerMovingFramesRef.current + 1) % 6;
-      }, sprintInterval.current);
-    }
-    startSprint();
-    
-    
-
     function introAnimation(){
       const canvas = canvasRef.current;
       const c = contextRef.current;
@@ -1918,13 +1644,6 @@ const Game = (data) => {
             isMovingRef.current = true;
             lastDirectionRef.current = 'right';
         }
-        else if(key === 'shift'){
-          if (speed.current !== 6) {
-            speed.current = 6;
-            sprintInterval.current = 50;
-            startSprint();
-          }
-        }
     }
 
     function handleKeyUp(e) {
@@ -1934,13 +1653,6 @@ const Game = (data) => {
         if(key === 's' || key === 'arrowdown') keys.current.s.isPressed = false;
         if(key === 'a' || key === 'arrowleft') keys.current.a.isPressed = false;
         if(key === 'd' || key === 'arrowright') keys.current.d.isPressed = false;
-        if(key === 'shift') {
-          if (speed.current !== 3) {
-            speed.current = 3;
-            sprintInterval.current = 100;
-            startSprint();
-          }
-        }
 
         if (keys.current.w.isPressed) lastDirectionRef.current = 'up';
         else if (keys.current.s.isPressed) lastDirectionRef.current = 'down';
@@ -1963,6 +1675,20 @@ const Game = (data) => {
   }, []);
 
   useEffect(() => {
+    if (info.isFastFoward) {
+      speed.current = 6;
+      sprintInterval.current = 50;
+    } else {
+      speed.current = 3;
+      sprintInterval.current = 100;
+    }
+    if (movingInterval.current) clearInterval(movingInterval.current);
+    movingInterval.current = setInterval(() => {
+      playerMovingFramesRef.current = (playerMovingFramesRef.current + 1) % 6;
+    }, sprintInterval.current);
+  }, [info.isFastFoward]);
+
+  useEffect(() => {
     if (isStartGame) {
       animationRef.current = requestAnimationFrame(animation);
     }
@@ -1974,6 +1700,12 @@ const Game = (data) => {
   useEffect(()=>{
     dispatch({type: 'changeHour'});
   }, [info.time.hour])
+
+  let currentAction = null;
+  if (canSleep) currentAction = "sleep";
+  else if (canEat) currentAction = "eat";
+  else if (canBath) currentAction = "bath";
+  else if (canSnake && !isSnakeActiveRef.current) currentAction = "snake";
 
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh' }}>
@@ -2001,17 +1733,24 @@ const Game = (data) => {
           />
           {(canSleep || canBath || canDodge || canEat || canSnake) && 
             <Buttons 
-              action = {action} 
+              action = {currentAction} 
               update = {dispatch} 
               buyItem = {buyItem} 
               info = {info}
-              setIsSnakeActive = {updateSnakeActive}/>
+              setIsSnakeActive = {updateSnakeActive}
+              canSleep={canSleep}
+              canBath={canBath}
+              canDodge={canDodge}
+              canEat={canEat}
+              canSnake={canSnake}
+            />
           }
           <Navigator onMove={handleNavigatorMove}/>
         </div>
       )}
       {isSnakeActive && (
         <SnakeGame
+          key={snakeGameKey}
           update={dispatch}
           setIsSnakeActive={updateSnakeActive}
         />
