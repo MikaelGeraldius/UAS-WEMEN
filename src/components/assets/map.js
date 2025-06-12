@@ -58,9 +58,9 @@ export const collisions = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 export const map = {
     day:{
-        source: '/gameAsset/maps/Map.png'
+        source: import.meta.env.BASE_URL + '/gameAsset/maps/Map.png'
     },
     night:{
-        source: '/gameAsset/maps/MapNight.png'
+        source: import.meta.env.BASE_URL + '/gameAsset/maps/MapNight.png'
     }
 }

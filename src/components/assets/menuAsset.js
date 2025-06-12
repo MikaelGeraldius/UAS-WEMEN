@@ -1,22 +1,22 @@
 const images = {
     bg: {
-        source: '/menuAsset/menubg.png',
+        source: import.meta.env.BASE_URL + '/menuAsset/menubg.png',
     },
     startButton:{
-        source: '/menuAsset/startb.png',
+        source: import.meta.env.BASE_URL + '/menuAsset/startb.png',
 
     },
     leftArrow: {
-        source: '/menuAsset/arrowkiri.png',
+        source: import.meta.env.BASE_URL + '/menuAsset/arrowkiri.png',
     },
     rightArrow: {
-        source: '/menuAsset/arrowkanan.png',
+        source: import.meta.env.BASE_URL + '/menuAsset/arrowkanan.png',
     },
     characters: {
         source: [
-            '/menuAsset/player1.png',   
-            '/menuAsset/player2.png',
-            '/menuAsset/player3.png'
+            import.meta.env.BASE_URL + '/menuAsset/player1.png',   
+            import.meta.env.BASE_URL + '/menuAsset/player2.png',
+            import.meta.env.BASE_URL + '/menuAsset/player3.png'
         ],
     }
 }

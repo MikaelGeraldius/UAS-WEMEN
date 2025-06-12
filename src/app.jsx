@@ -4,7 +4,7 @@ import Home from "./components/pages/home.jsx";
 import Game from "./components/pages/game.jsx";
 
 const App = props => {
-    const [startGame, setStartGame] = useState(true);
+    const [startGame, setStartGame] = useState(false);
     const [data, setData] = useState({name: '', char: 1});
 
     const nextPage = (name, count) => {

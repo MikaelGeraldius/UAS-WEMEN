@@ -362,7 +362,7 @@ const Game = (data) => {
     let playerOffset = 9;
     let playerIdleFrames = 0;
     let playerMovingFrames = 0;
-    let chars = 1;
+    let chars = (typeof data.char === 'number' ? data.char : 0) + 1;
 
     let idleInterval;
     
@@ -383,6 +383,8 @@ const Game = (data) => {
       if (isSnakeActiveRef.current) return;
       const delta = now - lastTime;
       lastTime = now;
+
+      chars = (typeof data.char === 'number' ? data.char : 0) + 1;
 
       const cameraOffsetX = canvas.width / 2 - playerWorld.current.x;
       const cameraOffsetY = canvas.height / 2 - playerWorld.current.y;
@@ -725,7 +727,7 @@ const Game = (data) => {
                     playerOffset = 9;
                 }
             }else if (chars == 2){
-                player.src = player1Images.idle.R
+                player.src = player2Images.idle.R
                 if(playerIdleFrames == 0){
                     playerCurrStart = 0;
                     playerCurrEnd = 36;
@@ -747,7 +749,7 @@ const Game = (data) => {
                     playerOffset = 9;
                 }
             }else if (chars == 3){
-                player.src = player1Images.idle.R
+                player.src = player3Images.idle.R
                 if(playerIdleFrames == 0){
                     playerCurrStart = 0;
                     playerCurrEnd = 32;

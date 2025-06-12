@@ -57,7 +57,15 @@ export default function Home({ onSubmit }){
     }, [state]);
 
     return(
-        <div id='homePage'>
+        <div 
+            id='homePage'
+            style={{
+                backgroundImage: `url(${Images.bg.source})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+            }}
+        >
             <div id="characterPick">
                 <img 
                     id="arrowButton"
@@ -67,7 +75,7 @@ export default function Home({ onSubmit }){
                 />
                 <img 
                     id="characterImage"
-                    src= {Images.characters.source[state.count]} 
+                    src={Images.characters.source[state.count]} 
                     alt="Character" 
                 />
                 <img 

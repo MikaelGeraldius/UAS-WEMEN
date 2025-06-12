@@ -10,10 +10,10 @@ body{
   align-items: center;
   justify-content: center;
   gap: 20px;
-  background-image: url('public/menuAsset/menubg.png');
-  background-Size: cover;
-  background-Position: center;
-  background-Repeat: no-repeat;
+  background-image: var(--menubg);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   width: 100vw;
   height: 100vh;
   min-height: 400px;
