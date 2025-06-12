@@ -333,6 +333,42 @@ const Game = (data) => {
   };
   
   useEffect(() => {
+    const playerIdleImgs = [
+      { U: new window.Image(), D: new window.Image(), L: new window.Image(), R: new window.Image() },
+      { U: new window.Image(), D: new window.Image(), L: new window.Image(), R: new window.Image() },
+      { U: new window.Image(), D: new window.Image(), L: new window.Image(), R: new window.Image() }
+    ];
+    const playerRunImgs = [
+      { U: new window.Image(), D: new window.Image(), L: new window.Image(), R: new window.Image() },
+      { U: new window.Image(), D: new window.Image(), L: new window.Image(), R: new window.Image() },
+      { U: new window.Image(), D: new window.Image(), L: new window.Image(), R: new window.Image() }
+    ];
+    playerIdleImgs[0].U.src = player1Images.idle.U;
+    playerIdleImgs[0].D.src = player1Images.idle.D;
+    playerIdleImgs[0].L.src = player1Images.idle.L;
+    playerIdleImgs[0].R.src = player1Images.idle.R;
+    playerIdleImgs[1].U.src = player2Images.idle.U;
+    playerIdleImgs[1].D.src = player2Images.idle.D;
+    playerIdleImgs[1].L.src = player2Images.idle.L;
+    playerIdleImgs[1].R.src = player2Images.idle.R;
+    playerIdleImgs[2].U.src = player3Images.idle.U;
+    playerIdleImgs[2].D.src = player3Images.idle.D;
+    playerIdleImgs[2].L.src = player3Images.idle.L;
+    playerIdleImgs[2].R.src = player3Images.idle.R;
+
+    playerRunImgs[0].U.src = player1Images.run.U;
+    playerRunImgs[0].D.src = player1Images.run.D;
+    playerRunImgs[0].L.src = player1Images.run.L;
+    playerRunImgs[0].R.src = player1Images.run.R;
+    playerRunImgs[1].U.src = player2Images.run.U;
+    playerRunImgs[1].D.src = player2Images.run.D;
+    playerRunImgs[1].L.src = player2Images.run.L;
+    playerRunImgs[1].R.src = player2Images.run.R;
+    playerRunImgs[2].U.src = player3Images.run.U;
+    playerRunImgs[2].D.src = player3Images.run.D;
+    playerRunImgs[2].L.src = player3Images.run.L;
+    playerRunImgs[2].R.src = player3Images.run.R;
+
     const canvas = canvasRef.current;
     const c = canvas.getContext('2d');
     setContext(c);
@@ -396,16 +432,28 @@ const Game = (data) => {
       else 
         c.drawImage(night, cameraOffsetX, cameraOffsetY);
 
+      const charIdx = chars - 1;
+      const dir = lastDirectionRef.current;
+      let playerImg;
+
+      const dirKey = dir === 'up' ? 'U' : dir === 'down' ? 'D' : dir === 'left' ? 'L' : 'R';
+
+      if (!isMovingRef.current) {
+        playerImg = playerIdleImgs[charIdx][dirKey];
+      } else {
+        playerImg = playerRunImgs[charIdx][dirKey];
+      }
+      
       c.drawImage(
-        player,
+        playerImg,
         playerCurrStart,
         0,
         playerCurrEnd,
-        player.height || 48,
+        playerImg.height || 48,
         canvas.width/2 - playerOffset,
-        canvas.height/2 - player.height/2,
+        canvas.height/2 - playerImg.height/2,
         playerCurrEnd,
-        player.height || 48
+        playerImg.height || 48
       );
 
         c.save();
@@ -1528,7 +1576,7 @@ const Game = (data) => {
       requestAnimationFrame(introAnimation);
     }
 
-    animationRef.current = animation;
+    animationRef.current = requestAnimationFrame(animation);
 
     const startGame = ()=>{
       console.log('start');
@@ -1609,8 +1657,8 @@ const Game = (data) => {
     
     return () => {
       clearInterval(idleInterval);
-      clearInterval(movingInterval);
-      cancelAnimationFrame(animation);
+      clearInterval(movingInterval.current);
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("resize", resizeCanvas);

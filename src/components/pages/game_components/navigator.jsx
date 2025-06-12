@@ -17,6 +17,8 @@ export default function Navigator ({onMove}){
                 className="slot navImage slot-2" 
                 src={Icon.navigator.up} 
                 alt="" 
+                draggable={false}
+                onContextMenu={e => e.preventDefault()}
                 onMouseDown={handlePress('up')}
                 onMouseUp={handleRelease('up')}
                 onMouseLeave={handleRelease('up')}
@@ -28,6 +30,8 @@ export default function Navigator ({onMove}){
                 className="slot navImage slot-5" 
                 src={Icon.navigator.down} 
                 alt="" 
+                draggable={false}
+                onContextMenu={e => e.preventDefault()}
                 onMouseDown={handlePress('down')}
                 onMouseUp={handleRelease('down')}
                 onMouseLeave={handleRelease('down')}
@@ -39,6 +43,8 @@ export default function Navigator ({onMove}){
                 className="slot navImage slot-1" 
                 src={Icon.navigator.left} 
                 alt="" 
+                draggable={false}
+                onContextMenu={e => e.preventDefault()}
                 onMouseDown={handlePress('left')}
                 onMouseUp={handleRelease('left')}
                 onMouseLeave={handleRelease('left')}
@@ -50,6 +56,8 @@ export default function Navigator ({onMove}){
                 className="slot navImage slot-3" 
                 src={Icon.navigator.right}
                 alt="" 
+                draggable={false}
+                onContextMenu={e => e.preventDefault()}
                 onMouseDown={handlePress('right')}
                 onMouseUp={handleRelease('right')}
                 onMouseLeave={handleRelease('right')}
