@@ -77,11 +77,12 @@ export default function buttons(prop){
         }
         else if (prop.action == 'eat'){
             const price = [80, 150, 250, 200];
-            console.log('coin:' + prop.info.coin)
+            console.log('buy index: ' + index);
             if(prop.info.coin >= price[index])
                 prop.buyItem(index);
             else{
                 setNoMoney(true);
+                noMoneyFrame;
             }
         }
         else if (prop.action == 'sleep'){

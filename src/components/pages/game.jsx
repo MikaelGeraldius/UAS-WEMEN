@@ -13,6 +13,7 @@ function reducer (info, action){
   let { greet, day, hour, minute } = info.time;
   let {energy, hunger, hygiene, mood } = info.status;
   let money = info.coin;
+  let priceList = [80, 150, 250, 200];
   switch (action.type){
     case 'updateTime':{
       if(info.isFastFoward)
@@ -69,9 +70,10 @@ function reducer (info, action){
       };
     }
     case 'buyFood':{
-      const priceList = [80, 150, 250, 200];
-      const cost = priceList[action.index];
-      return { ...info, coin: money - cost };
+      console.log ('dispatch index: ' + action.index);
+      if (action.index >= 0)
+        money -= priceList[action.index]
+      return { ...info, coin: money};
     } 
     case 'playSnake':{
       money += ((10*action.score)-50);
@@ -180,6 +182,7 @@ const Game = (prop) => {
 
   const itemIndexRef = useRef(-1);
   function buyItem(itemIndex){
+    console.log ('index:' + itemIndex);
     itemIndexRef.current = itemIndex;
     dispatch({
       type: 'buyFood',
@@ -1715,6 +1718,9 @@ const Game = (prop) => {
     if (canvas.width > 400) y = canvas.height*0.4;
     else y = canvas.height*0.45;
     c.drawImage(gameOverImage, x, y, canvas.width*0.8, canvas.width*0.8*0.12);
+    c.fillStyle = '#3b2216';
+    c.font = '30px monospace';
+    c.fillText ("Score: ", 550, 30);
     endingAnimationRef.current = requestAnimationFrame(endingAnimation);
   }
 
