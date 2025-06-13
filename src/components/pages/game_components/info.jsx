@@ -24,6 +24,13 @@ export default function Info (props){
   }, [props.isFastFoward])
 
   useEffect(()=>{
+    if (timeInterval.current) {
+        clearInterval(timeInterval.current);
+        timeInterval.current = null;
+    }
+  }, [props.gameOver])
+
+  useEffect(()=>{
     const canvas = canvasRef.current;
     const c = canvas.getContext('2d');
     let fontSize;
@@ -41,15 +48,15 @@ export default function Info (props){
         else 
           setX(window.innerWidth *0.01);
     }
-        
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
 
     timeInterval.current = setInterval(() => {
         props.update({ 
           type: 'updateTime',
         });
-    }, 1000);    
+    }, 1000);  
+        
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();  
 
     const signImage = new Image();
     signImage.src = Icon.sign;

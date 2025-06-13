@@ -71,12 +71,7 @@ function reducer (info, action){
     case 'buyFood':{
       const priceList = [80, 150, 250, 200];
       const cost = priceList[action.index];
-
-      if (money >= cost) {
-        return { ...info, coin: money - cost };
-      } else {
-        return { ...info, noMoney: true }; 
-      }
+      return { ...info, coin: money - cost };
     } 
     case 'playSnake':{
       money += ((10*action.score)-50);
@@ -91,7 +86,7 @@ function reducer (info, action){
   }
 }
 
-const Game = (data) => {
+const Game = (prop) => {
   const canvasRef = useRef(null);
   const [isStartGame, setIsStartGame] =  useState(false);
   const [context, setContext] = useState(null);
@@ -105,6 +100,7 @@ const Game = (data) => {
   const isSnakeActiveRef = useRef(isSnakeActive);
   const animationRef = useRef();
   const introAnimationRef = useRef();
+  const endingAnimationRef = useRef();
   const isMovingRef = useRef(false);
   const lastDirectionRef = useRef('down');
   const playerRef = useRef(new window.Image());
@@ -113,13 +109,14 @@ const Game = (data) => {
   const playerOffsetRef = useRef(9);
   const playerIdleFramesRef = useRef(0);
   const playerMovingFramesRef = useRef(0);
-  const charsRef = useRef((typeof data.char === 'number' ? data.char : 0) + 1);
+  const charsRef = useRef((typeof prop.data.char === 'number' ? prop.data.char : 0) + 1);
   const playerIdleImgsRef = useRef([]);
   const playerRunImgsRef = useRef([]);
   const contextRef = useRef(null);
   const dayRef = useRef(new window.Image());
   const nightRef = useRef(new window.Image());
   const introRef = useRef(new window.Image());
+  const gameOverRef = useRef(new window.Image());
   const [snakeGameKey, setSnakeGameKey] = useState(0);
   const [canBath, setCanBath] = useState(false);
   const [canSnake, setCanSnake] = useState(false);
@@ -127,6 +124,7 @@ const Game = (data) => {
   const [canEat, setCanEat] = useState(false);
   const [canSleep, setCanSleep] = useState(false);
   const prevFastFowardRef = useRef(false);
+  const [isGameOver, setIsGameOver] = useState(false);
  
   useEffect(() => {
     isSnakeActiveRef.current = isSnakeActive;
@@ -167,7 +165,7 @@ const Game = (data) => {
     time:{
       greet: 0,
       day: 1,
-      hour: 15,
+      hour: 17,
       minute:0
     }, 
     status: {
@@ -176,16 +174,14 @@ const Game = (data) => {
       hygiene:60,
       mood: 55
     },
-    coin: 10000,
-    noMoney: false,
+    coin: 100,
     isFastFoward: false
   })
-  const frameCounterRef = useRef(0);
 
   const itemIndexRef = useRef(-1);
   function buyItem(itemIndex){
     itemIndexRef.current = itemIndex;
-   dispatch({
+    dispatch({
       type: 'buyFood',
       index: itemIndex
     });
@@ -348,6 +344,7 @@ const Game = (data) => {
   function animation(now){
     if(!isStartGame) return;
     if(isSnakeActiveRef.current) return;
+    if (isGameOver) return;
     
     const canvas = canvasRef.current;
     const c = contextRef.current;
@@ -359,7 +356,6 @@ const Game = (data) => {
     const day = dayRef.current;
     const night = nightRef.current;
     const player = playerRef.current;
-
     console.log(playerWorld.current);
     if (isSnakeActiveRef.current) return;
     const delta = now - lastTime;
@@ -373,10 +369,14 @@ const Game = (data) => {
     console.log('day', day.complete, day.naturalWidth);
     
 
-    if (dayMode)
-      c.drawImage(day, cameraOffsetX, cameraOffsetY);
-    else 
+    if (info.time.hour > 18){
+      console.log('night');
       c.drawImage(night, cameraOffsetX, cameraOffsetY);
+    }
+    else {
+      console.log('day');
+      c.drawImage(day, cameraOffsetX, cameraOffsetY);
+    }
 
     const chars = charsRef.current;
     const charIdx = chars - 1;
@@ -1467,6 +1467,7 @@ const Game = (data) => {
       dayRef.current,
       nightRef.current,
       introRef.current,
+      gameOverRef.current,
       playerRef.current,
       // Idle
       playerIdleImgs[0].U, playerIdleImgs[0].D, playerIdleImgs[0].L, playerIdleImgs[0].R,
@@ -1494,6 +1495,7 @@ const Game = (data) => {
     dayRef.current.src = map.day.source;
     nightRef.current.src = map.night.source;
     introRef.current.src = icons.intro;
+    gameOverRef.current.src = icons.gameOver
     playerRef.current.src = player1Images.idle.D;
     playerIdleImgs[0].U.src = player1Images.idle.U;
     playerIdleImgs[0].D.src = player1Images.idle.D;
@@ -1529,7 +1531,7 @@ const Game = (data) => {
     playerOffsetRef.current = 9;
     playerIdleFramesRef.current = 0;
     playerMovingFramesRef.current = 0;
-    charsRef.current = (typeof data.char === 'number' ? data.char : 0) + 1;
+    charsRef.current = (typeof prop.data.char === 'number' ? prop.data.char : 0) + 1;
 
     let userClicked = false;
 
@@ -1550,6 +1552,7 @@ const Game = (data) => {
     dayRef.current.onload = checkAllLoaded;
     nightRef.current.onload = checkAllLoaded;
     playerRef.current.onload = checkAllLoaded;
+    gameOverRef.current.onload = checkAllLoaded;
     introRef.current.onload = () => {
       checkAllLoaded();
       introAnimationRef.current = requestAnimationFrame(introAnimation);
@@ -1559,11 +1562,13 @@ const Game = (data) => {
     dayRef.current.src = map.day.source;
     nightRef.current.src = map.night.source;
     introRef.current.src = icons.intro;
+    gameOverRef.current.src = icons.gameOver;
     playerRef.current.src = player1Images.idle.D;
 
     if (dayRef.current.complete) checkAllLoaded();
     if (nightRef.current.complete) checkAllLoaded();
     if (playerRef.current.complete) checkAllLoaded();
+    if (gameOverRef.current.complete) checkAllLoaded();
     if (introRef.current.complete) {
       checkAllLoaded();
       introAnimationRef.current = requestAnimationFrame(introAnimation);
@@ -1591,7 +1596,7 @@ const Game = (data) => {
     let playerOffset = 9;
     let playerIdleFrames = 0;
     let playerMovingFrames = 0;
-    let chars = (typeof data.char === 'number' ? data.char : 0) + 1;
+    let chars = (typeof prop.data.char === 'number' ? prop.data.char : 0) + 1;
 
     let idleInterval;
     
@@ -1701,6 +1706,39 @@ const Game = (data) => {
     dispatch({type: 'changeHour'});
   }, [info.time.hour])
 
+  function endingAnimation (){
+    const canvas = canvasRef.current;
+    const c = contextRef.current;
+    const gameOverImage = gameOverRef.current;
+    let x = canvas.width*0.1;
+    let y;
+    if (canvas.width > 400) y = canvas.height*0.4;
+    else y = canvas.height*0.45;
+    c.drawImage(gameOverImage, x, y, canvas.width*0.8, canvas.width*0.8*0.12);
+    endingAnimationRef.current = requestAnimationFrame(endingAnimation);
+  }
+
+  useEffect(()=>{
+    if (info.status.energy == 0 ||
+        info.status.hunger == 0 ||
+        info.status.hygiene == 0 ||
+        info.status.mood == 0
+    ){
+      setIsGameOver(true);
+      if(animationRef.current){
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+      setCanBath(false);
+      setCanDodge(false);
+      setCanEat(false);
+      setCanSleep(false);
+      setCanSnake(false);
+      console.log('load ending');
+      endingAnimationRef.current = requestAnimationFrame(endingAnimation);
+    }
+  }, [info.status])
+
   let currentAction = null;
   if (canSleep) currentAction = "sleep";
   else if (canEat) currentAction = "eat";
@@ -1717,10 +1755,11 @@ const Game = (data) => {
             <p>{info.coin}</p>
           </div>
           <Info 
-            data = {data.name} 
+            data = {prop.data.name} 
             time = {info.time} 
             update = {dispatch} 
             isFastFoward = {info.isFastFoward}
+            gameOver = {isGameOver}
           />
           <StatusBar 
             value = {info.status} 
@@ -1731,7 +1770,7 @@ const Game = (data) => {
             restartIndex = {buyItem} 
             update = {dispatch}
           />
-          {(canSleep || canBath || canDodge || canEat || canSnake) && 
+          {(canSleep || canBath || canDodge || canEat || canSnake || isGameOver) && 
             <Buttons 
               action = {currentAction} 
               update = {dispatch} 
@@ -1743,6 +1782,8 @@ const Game = (data) => {
               canDodge={canDodge}
               canEat={canEat}
               canSnake={canSnake}
+              gameOver = {isGameOver}
+              restartGame = {prop.restartGame}
             />
           }
           <Navigator onMove={handleNavigatorMove}/>

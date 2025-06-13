@@ -12,10 +12,16 @@ const App = props => {
         setStartGame(true);
     };
 
+    function restartGame (){
+        console.log('restartGame');
+        setStartGame(false);
+        setData({name: null, char: 1});
+    }
+
     return (
         <>
             {startGame ? (
-                <Game {...data} />
+                <Game data={data} restartGame = {restartGame} />
             ) : (
                 <Home onSubmit={nextPage} />
             )}

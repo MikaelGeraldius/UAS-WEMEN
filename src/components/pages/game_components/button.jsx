@@ -1,6 +1,5 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import Icon from "../../assets/iconAsset.js";
-import Snake from "./snake.jsx";
 
 export default function buttons(prop){
     const [ratio, setRatio] = useState({width: 0, height: 0});
@@ -9,11 +8,13 @@ export default function buttons(prop){
         info: null,
     });
     const [startSnake, setStartSnake] = useState(false);
+    const frameCounterRef = useRef(0);
+    const noMoneyInterval = useRef();
+    const [noMoney, setNoMoney] = useState(false);
 
     console.log("canSleep:", prop.canSleep, "canBath:", prop.canBath, "canDodge:", prop.canDodge, "canEat:", prop.canEat, "canSnake:", prop.canSnake);
 
     useEffect(()=>{
-        
         function resizeCanvas (){
             setRatio({
                 width: window.innerWidth,
@@ -57,6 +58,16 @@ export default function buttons(prop){
         }
     },[prop.action])
 
+    const noMoneyFrame = ()=>{
+        noMoneyInterval.current = setInterval(()=>{
+            frameCounterRef.current = frameCounterRef.current++;
+            if(frameCounterRef.current == 5)
+                frameCounterRef.current = 0;
+                setNoMoney(false);
+                clearInterval(noMoneyInterval.current);
+        }, 1000);
+    }
+
     const handleClick = (index)=>{
         if (prop.action == 'bath')
             prop.update({type: 'takeBath'})
@@ -64,11 +75,21 @@ export default function buttons(prop){
             setStartSnake(true);
             prop.setIsSnakeActive(true);
         }
-        else if (prop.action == 'eat')
-            prop.buyItem(index);
+        else if (prop.action == 'eat'){
+            const price = [80, 150, 250, 200];
+            console.log('coin:' + prop.info.coin)
+            if(prop.info.coin >= price[index])
+                prop.buyItem(index);
+            else{
+                setNoMoney(true);
+            }
+        }
         else if (prop.action == 'sleep'){
             if(prop.info.time.hour >= 20 || prop.info.time.hour < 6 )
                 prop.update({type: 'goSleep'})
+        }
+        else if (prop.gameOver){
+            prop.restartGame();
         }
     }
     console.log("Button image src:", image.button, "Action:", prop.action);
@@ -84,15 +105,21 @@ export default function buttons(prop){
             }
             {prop.action == 'eat'&&(
                 <div id="buyButtons">
-                    <button id='buttons' style={{opacity: '0', cursor:'pointer'}} onClick={()=>handleClick(0)} src={image.button} alt="Buy">buy</button>
-                    <button id='buttons' style={{opacity: '0', cursor:'pointer'}} onClick={()=>handleClick(1)} src={image.button} alt="Buy">buy</button>
-                    <button id='buttons' style={{opacity: '0', cursor:'pointer'}} onClick={()=>handleClick(2)} src={image.button} alt="Buy">buy</button>
-                    <button id='buttons' style={{opacity: '0', cursor:'pointer'}} onClick={()=>handleClick(3)} src={image.button} alt="Buy">buy</button>
+                    <button style={{opacity: '0', cursor:'pointer'}} onClick={()=>handleClick(0)} src={image.button} alt="Buy">buy</button>
+                    <button style={{opacity: '0', cursor:'pointer'}} onClick={()=>handleClick(1)} src={image.button} alt="Buy">buy</button>
+                    <button style={{opacity: '0', cursor:'pointer'}} onClick={()=>handleClick(2)} src={image.button} alt="Buy">buy</button>
+                    <button style={{opacity: '0', cursor:'pointer'}} onClick={()=>handleClick(3)} src={image.button} alt="Buy">buy</button>
                 </div>
             )}
             {image.button && (prop.action != 'dodge' && prop.action != 'eat') && (
                 <img id="buttonImage" onClick={handleClick} src={image.button}/> 
             )}
+            {noMoney &&( 
+                <img id="warning" src={Icon.warning.noMoney}  />
+            )}
+            {prop.gameOver &&
+                <img id='restartButton' src={Icon.button.restart} onClick={handleClick} />
+            }
         </div>
     )
 }

@@ -22,7 +22,8 @@ const icons = {
         buy: import.meta.env.BASE_URL + "/gameAsset/icon/buttons/buyButton.png",
         restart: import.meta.env.BASE_URL + "/gameAsset/icon/buttons/restartButton.png",
         fastFwrd1: import.meta.env.BASE_URL + "/gameAsset/icon/buttons/fastFowr1.png",
-        fastFwrd2: import.meta.env.BASE_URL + "/gameAsset/icon/buttons/fastFowr2.png"
+        fastFwrd2: import.meta.env.BASE_URL + "/gameAsset/icon/buttons/fastFowr2.png",
+        restart: import.meta.env.BASE_URL + "/gameAsset/icon/buttons/restartButton.png"
     },
     snake: {
         tutor: import.meta.env.BASE_URL + "/gameAsset/icon/snake/snakeTutor.png",
@@ -46,7 +47,8 @@ const icons = {
         down : import.meta.env.BASE_URL + "/gameAsset/icon/buttons/down.png",
         left: import.meta.env.BASE_URL + "/gameAsset/icon/buttons/left.png",
         right: import.meta.env.BASE_URL + "/gameAsset/icon/buttons/right.png"
-    }
+    },
+    gameOver: import.meta.env.BASE_URL + '/gameAsset/icon/gameOver.png'
 }
 
 export default icons;

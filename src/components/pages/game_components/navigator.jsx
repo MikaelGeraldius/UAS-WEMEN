@@ -27,7 +27,7 @@ export default function Navigator ({onMove}){
                 style={{ cursor: 'pointer' }}
             />
             <img 
-                className="slot navImage slot-5" 
+                className="slot navImage slot-4" 
                 src={Icon.navigator.down} 
                 alt="" 
                 draggable={false}
