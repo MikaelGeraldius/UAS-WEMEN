@@ -1,6 +1,7 @@
 import React from "react";
 import { useReducer, useEffect } from "react";
 import Images from '../assets/menuAsset.js';
+import images from "../assets/menuAsset.js";
 
 function reducer (state, action){
     let newCount;
@@ -66,6 +67,7 @@ export default function Home({ onSubmit }){
                 backgroundRepeat: 'no-repeat',
             }}
         >
+            <img id= "logoImage" src={Images.logo.source} alt="" />
             <div id="characterPick">
                 <img 
                     id="arrowButton"

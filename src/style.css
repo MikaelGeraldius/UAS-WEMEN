@@ -18,6 +18,13 @@ body{
   height: 100vh;
   min-height: 400px;
 }
+#logoImage{
+  max-height: 100px;
+  max-width: auto; 
+  width: 30%;
+  height: auto;
+  min-width: 100px;
+}
 
 #characterPick {
   display: flex;

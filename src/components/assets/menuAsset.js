@@ -1,4 +1,7 @@
 const images = {
+    logo: {
+        source: import.meta.env.BASE_URL + '/menuAsset/logo.png'
+    },
     bg: {
         source: import.meta.env.BASE_URL + '/menuAsset/menubg.png',
     },

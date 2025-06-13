@@ -72,8 +72,14 @@ export default function buttons(prop){
         if (prop.action == 'bath')
             prop.update({type: 'takeBath'})
         else if (prop.action == 'snake'){
-            setStartSnake(true);
-            prop.setIsSnakeActive(true);
+            if(prop.info.coin >= 50){
+                setStartSnake(true);
+                prop.setIsSnakeActive(true);
+            }
+            else{
+                setNoMoney(true);
+                noMoneyFrame;
+            }
         }
         else if (prop.action == 'eat'){
             const price = [80, 150, 250, 200];
