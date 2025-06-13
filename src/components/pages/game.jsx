@@ -134,8 +134,6 @@ const Game = (prop) => {
   }, [isSnakeActive]);
   
   const TILE_SIZE = 64;
-  const MAP_WIDTH = 60;
-  const MAP_HEIGHT = 57;
   
   const playerWorld = useRef({
     x: 13 * TILE_SIZE,
@@ -297,7 +295,6 @@ const Game = (prop) => {
     })
   })
 
-  let predict = 3;
   let lastTime = performance.now();
   
   const keys = useRef({
@@ -390,8 +387,6 @@ const Game = (prop) => {
 
     const playerIdleFrames = playerIdleFramesRef.current;
     const playerMovingFrames = playerMovingFramesRef.current;
-    let playerCurrStart = playerCurrStartRef.current;
-    let playerCurrEnd = playerCurrEndRef.current;
     let playerOffset = playerOffsetRef.current;
     
     if (playerImg.complete && playerImg.naturalWidth !== 0) {
@@ -1585,13 +1580,6 @@ const Game = (prop) => {
     if (canvas) {
       contextRef.current = canvas.getContext('2d');
     }
-
-    let playerCurrStart = 0;
-    let playerCurrEnd = 36;
-    let playerOffset = 9;
-    let playerIdleFrames = 0;
-    let playerMovingFrames = 0;
-    let chars = (typeof prop.data.char === 'number' ? prop.data.char : 0) + 1;
 
     let idleInterval;
     
