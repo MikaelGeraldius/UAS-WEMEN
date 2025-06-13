@@ -1708,12 +1708,13 @@ const Game = (prop) => {
     const gameOverImage = gameOverRef.current;
     let x = canvas.width*0.1;
     let y;
+    let score = info.day*100 + info.coin*5;
     if (canvas.width > 400) y = canvas.height*0.4;
     else y = canvas.height*0.45;
     c.drawImage(gameOverImage, x, y, canvas.width*0.8, canvas.width*0.8*0.12);
     c.fillStyle = '#3b2216';
     c.font = '30px monospace';
-    c.fillText ("Score: ", 550, 30);
+    c.fillText ("Score: " + score,  550, 30);
     endingAnimationRef.current = requestAnimationFrame(endingAnimation);
   }
 
