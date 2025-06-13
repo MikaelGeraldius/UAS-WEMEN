@@ -127,6 +127,7 @@ const Game = (prop) => {
   const [canSleep, setCanSleep] = useState(false);
   const prevFastFowardRef = useRef(false);
   const [isGameOver, setIsGameOver] = useState(false);
+  const dayModeRef = useRef(dayMode);
  
   useEffect(() => {
     isSnakeActiveRef.current = isSnakeActive;
@@ -359,7 +360,6 @@ const Game = (prop) => {
     const day = dayRef.current;
     const night = nightRef.current;
     const player = playerRef.current;
-    console.log(playerWorld.current);
     if (isSnakeActiveRef.current) return;
     const delta = now - lastTime;
     lastTime = now;
@@ -368,18 +368,12 @@ const Game = (prop) => {
     const cameraOffsetY = canvas.height / 2 - playerWorld.current.y;
 
     c.clearRect(0, 0, canvas.width, canvas.height);
-
-    console.log('day', day.complete, day.naturalWidth);
     
+    const mapImage = dayModeRef.current ? dayRef.current : nightRef.current;
+    if (mapImage.complete && mapImage.naturalWidth !== 0) {
+      c.drawImage(mapImage, cameraOffsetX, cameraOffsetY);
+    }
 
-    if (info.time.hour > 18){
-      console.log('night');
-      c.drawImage(night, cameraOffsetX, cameraOffsetY);
-    }
-    else {
-      console.log('day');
-      c.drawImage(day, cameraOffsetX, cameraOffsetY);
-    }
 
     const chars = charsRef.current;
     const charIdx = chars - 1;
@@ -1562,8 +1556,6 @@ const Game = (prop) => {
       window.addEventListener('click', onUserClick, { once: true });
     };
 
-    dayRef.current.src = map.day.source;
-    nightRef.current.src = map.night.source;
     introRef.current.src = icons.intro;
     gameOverRef.current.src = icons.gameOver;
     playerRef.current.src = player1Images.idle.D;
@@ -1681,6 +1673,19 @@ const Game = (prop) => {
       window.removeEventListener("resize", resizeCanvas);
     };
   }, []);
+
+  useEffect(() => {
+    dayModeRef.current = dayMode;
+  }, [dayMode]);
+
+  useEffect(() => {
+    if (info.time.hour >= 18 || info.time.hour < 6) {
+      setDayMode(false);
+      console.log('Night mode');
+    } else {
+      setDayMode(true);
+    }
+  }, [info.time.hour]);
 
   useEffect(() => {
     if (info.isFastFoward) {
