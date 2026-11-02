@@ -1,132 +1,109 @@
-import React, {useEffect, useRef, useState} from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Icon from "../../assets/iconAsset.js";
 
-export default function buttons(prop){
-    const [ratio, setRatio] = useState({width: 0, height: 0});
-    const [image, setImage] = useState({
-        button: null,
-        info: null,
-    });
-    const [startSnake, setStartSnake] = useState(false);
-    const frameCounterRef = useRef(0);
-    const noMoneyInterval = useRef();
+const PRICES = [80, 150, 250, 200];
+const FOOD_NAMES = ['Bread', 'Chicken', 'Steak', 'Energy drink'];
+// Vertical bands (in % of the menu image) for each food row
+const MENU_ROWS = [
+    { top: 25, height: 13 },
+    { top: 39, height: 15 },
+    { top: 55, height: 15 },
+    { top: 71, height: 16 },
+];
+const SNAKE_COST = 50;
+
+export default function Buttons(prop){
     const [noMoney, setNoMoney] = useState(false);
+    const noMoneyTimeout = useRef();
 
-    console.log("canSleep:", prop.canSleep, "canBath:", prop.canBath, "canDodge:", prop.canDodge, "canEat:", prop.canEat, "canSnake:", prop.canSnake);
+    useEffect(() => () => clearTimeout(noMoneyTimeout.current), []);
 
-    useEffect(()=>{
-        function resizeCanvas (){
-            setRatio({
-                width: window.innerWidth,
-                height: window.innerHeight
-            })
-        }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
-        
-        console.log("load button");
-    
-        if(prop.action == 'sleep'){
-            setImage({
-                button: Icon.button.sleep,
-                info: null
-            });
-        }
-        else if (prop.action == 'bath'){
-            setImage({
-                button: Icon.button.bath,
-                info: null
-            })
-        }
-        else if (prop.action == 'snake'){
-            setImage({
-                button: Icon.button.play,
-                info: Icon.snake.info
-            })
-        }
-        else if (prop.action == 'eat'){
-            setImage({
-                button: Icon.button.buy,
-                info: Icon.foodMenu
-            })
-        }
-        else {
-            setImage({
-                button: null,
-                info: null
-            });
-        }
-    },[prop.action])
-
-    const noMoneyFrame = ()=>{
-        noMoneyInterval.current = setInterval(()=>{
-            frameCounterRef.current = frameCounterRef.current++;
-            if(frameCounterRef.current == 5)
-                frameCounterRef.current = 0;
-                setNoMoney(false);
-                clearInterval(noMoneyInterval.current);
-        }, 1000);
+    const showNoMoney = () => {
+        setNoMoney(true);
+        clearTimeout(noMoneyTimeout.current);
+        noMoneyTimeout.current = setTimeout(() => setNoMoney(false), 1800);
     }
 
-    const handleClick = (index)=>{
+    const canSleepNow = prop.info.time.hour >= 20 || prop.info.time.hour < 6;
+
+    let buttonImage = null;
+    if (prop.action == 'sleep') buttonImage = Icon.button.sleep;
+    else if (prop.action == 'bath') buttonImage = Icon.button.bath;
+    else if (prop.action == 'snake') buttonImage = Icon.button.play;
+
+    const handleClick = ()=>{
         if (prop.action == 'bath')
             prop.update({type: 'takeBath'})
         else if (prop.action == 'snake'){
-            if(prop.info.coin >= 50){
-                setStartSnake(true);
+            if(prop.info.coin >= SNAKE_COST)
                 prop.setIsSnakeActive(true);
-            }
-            else{
-                setNoMoney(true);
-                noMoneyFrame;
-            }
-        }
-        else if (prop.action == 'eat'){
-            const price = [80, 150, 250, 200];
-            console.log('buy index: ' + index);
-            if(prop.info.coin >= price[index])
-                prop.buyItem(index);
-            else{
-                setNoMoney(true);
-                noMoneyFrame;
-            }
+            else
+                showNoMoney();
         }
         else if (prop.action == 'sleep'){
-            if(prop.info.time.hour >= 20 || prop.info.time.hour < 6 )
+            if(canSleepNow)
                 prop.update({type: 'goSleep'})
         }
-        else if (prop.gameOver){
-            prop.restartGame();
-        }
     }
-    console.log("Button image src:", image.button, "Action:", prop.action);
-    console.log("action:", prop.action, "button image:", image.button);
+
+    const handleBuy = (index) => {
+        if (prop.info.coin >= PRICES[index])
+            prop.buyItem(index);
+        else
+            showNoMoney();
+    }
+
+    // Keyboard shortcut: E / Enter triggers the current action
+    useEffect(() => {
+        if (!buttonImage) return;
+        const onKey = (e) => {
+            if (e.key === 'e' || e.key === 'E' || e.key === 'Enter') handleClick();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    });
 
     return (
-        <div>
-            {(prop.action == 'sleep' && (prop.info.time.hour < 20 && prop.info.time.hour > 5)) &&
-                <img id="warning" src={Icon.warning.sleep}  />
+        <>
+            {(prop.action == 'sleep' && !canSleepNow) &&
+                <img className="warning pixel" src={Icon.warning.sleep} alt="You can only sleep between 20:00 and 06:00" />
             }
-            {(prop.action == 'snake' || prop.action == 'eat') &&
-                <img id="information" src={image.info} />
-            }
-            {prop.action == 'eat'&&(
-                <div id="buyButtons">
-                    <button style={{opacity: '0', cursor:'pointer'}} onClick={()=>handleClick(0)} src={image.button} alt="Buy">buy</button>
-                    <button style={{opacity: '0', cursor:'pointer'}} onClick={()=>handleClick(1)} src={image.button} alt="Buy">buy</button>
-                    <button style={{opacity: '0', cursor:'pointer'}} onClick={()=>handleClick(2)} src={image.button} alt="Buy">buy</button>
-                    <button style={{opacity: '0', cursor:'pointer'}} onClick={()=>handleClick(3)} src={image.button} alt="Buy">buy</button>
+            {prop.action == 'snake' && (
+                <div className="info-card">
+                    <img className="pixel" src={Icon.snake.info} alt="Snake: costs 50 coins, earn coins per apple" />
                 </div>
             )}
-            {image.button && (prop.action != 'dodge' && prop.action != 'eat') && (
-                <img id="buttonImage" onClick={handleClick} src={image.button}/> 
+            {prop.action == 'eat' && (
+                <div className="info-card">
+                    <img className="pixel" src={Icon.foodMenu} alt="Food menu" />
+                    {MENU_ROWS.map((row, i) => (
+                        <button
+                            key={i}
+                            type="button"
+                            className={`menu-row ${prop.info.coin < PRICES[i] ? 'cant-afford' : ''}`}
+                            style={{ top: `${row.top}%`, height: `${row.height}%` }}
+                            aria-label={`Buy ${FOOD_NAMES[i]} for ${PRICES[i]} coins`}
+                            title={`Buy ${FOOD_NAMES[i]} (${PRICES[i]})`}
+                            onClick={() => handleBuy(i)}
+                        />
+                    ))}
+                    <div className="menu-hint">Tap an item to buy</div>
+                </div>
             )}
-            {noMoney &&( 
-                <img id="warning" src={Icon.warning.noMoney}  />
+            {buttonImage && (
+                <button
+                    id="actionButton"
+                    className="img-button"
+                    onClick={handleClick}
+                    aria-label={prop.action}
+                    title="Press E"
+                >
+                    <img className="pixel" src={buttonImage} alt="" />
+                </button>
             )}
-            {prop.gameOver &&
-                <img id='restartButton' src={Icon.button.restart} onClick={handleClick} />
-            }
-        </div>
+            {noMoney && (
+                <img className="warning pixel" src={Icon.warning.noMoney} alt="Not enough money" />
+            )}
+        </>
     )
 }
