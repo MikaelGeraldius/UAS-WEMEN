@@ -8,8 +8,10 @@ export default function Inventory(prop) {
         {name: 'Steak', count: 0, source: Icon.inventory.steak},
         {name: 'Energy drink', count: 0, source:Icon.inventory.drink}
     ]);
+    const [collapsed, setCollapsed] = useState(false);
 
     const handleItemClick = (index) => {
+        if (items[index].count <= 0) return;
         setItems((prevItems) => {
             return prevItems.map((item, i) =>
                 i === index && item.count > 0
@@ -26,49 +28,51 @@ export default function Inventory(prop) {
     const addItem = (index) => {
         setItems((prevItems) => {
             return prevItems.map((item, i) =>
-                i === index 
+                i === index
                 ? { ...item, count: item.count + 1 }
                 : item
             );
         });
+        setCollapsed(false);
         prop.restartIndex(-1);
     };
 
     useEffect(()=>{
-        console.log("calling")
         if (prop.itemIndex != -1)
             addItem(prop.itemIndex);
     }, [prop.itemIndex])
 
+    const owned = items.filter(item => item.count > 0);
+    const total = owned.reduce((sum, item) => sum + item.count, 0);
+
     return (
-        <div id = 'inventory'>
-        <div id = 'heading'>
-            <img src={Icon.inventory.bag}/>
-            Inventory
-        </div>
-            <ul style={{ listStyle: "none", padding: 0 }}>
-                {
-                    items.filter(item => item.count > 0).length === 0 ? (
-                        <li style={{ opacity: 0.6, fontStyle: "italic" }}>No items</li>
-                    ) : (
-                        items.map((item, index) =>
-                            item.count > 0 && (
-                                <li
-                                    key={index}
-                                    onClick={() => handleItemClick(index)}
-                                    style={{
-                                        cursor: "pointer",
-                                        padding: "0.3rem 0",
-                                        borderBottom: "1px solid #444",
-                                    }}
-                                >
-                                    <img src={item.source} />
-                                    {item.name} x{item.count}
-                                </li>
-                            )
+        <div id='inventory' className={collapsed ? 'collapsed' : ''}>
+            <button
+                type="button"
+                className='heading'
+                aria-expanded={!collapsed}
+                onClick={() => setCollapsed(c => !c)}
+            >
+                <img className="pixel" src={Icon.inventory.bag} alt="" />
+                Inventory{collapsed && total > 0 ? ` (${total})` : ''}
+                <span className="caret" aria-hidden="true">▾</span>
+            </button>
+            <ul>
+                {owned.length === 0 ? (
+                    <li className="empty">No items</li>
+                ) : (
+                    items.map((item, index) =>
+                        item.count > 0 && (
+                            <li key={index}>
+                                <button type="button" onClick={() => handleItemClick(index)} title={`Eat ${item.name}`}>
+                                    <img className="pixel" src={item.source} alt="" />
+                                    <span>{item.name}</span>
+                                    <span>x{item.count}</span>
+                                </button>
+                            </li>
                         )
                     )
-                }
+                )}
             </ul>
         </div>
     );

@@ -1,108 +1,116 @@
 import React from "react";
-import { useReducer, useEffect } from "react";
+import { useReducer, useEffect, useState } from "react";
 import Images from '../assets/menuAsset.js';
-import images from "../assets/menuAsset.js";
+
+const CHAR_COUNT = Images.characters.source.length;
 
 function reducer (state, action){
-    let newCount;
     switch (action.type){
-        case 'input': 
+        case 'input':
             return {...state, name: action.payload.value};
-        case 'increase': {
-            {state.count != 2? (
-                newCount = state.count+1
-            ):(
-                newCount = 0
-            )}
-            return {...state, count: newCount};
-        }
-        case 'decrease': {
-            {state.count != 0? (
-                newCount = state.count-1
-            ):(
-                newCount = 2
-            )}            return {...state, count: newCount};
-        }
+        case 'increase':
+            return {...state, count: (state.count + 1) % CHAR_COUNT};
+        case 'decrease':
+            return {...state, count: (state.count - 1 + CHAR_COUNT) % CHAR_COUNT};
         default:
             return state;
     }
 }
 
-const pageWidth = window.innerWidth;
-const pageHeight = window.innerHeight;
-
 export default function Home({ onSubmit }){
     const [state, dispatch] = useReducer(reducer, {name: '', count: 0});
+    const [error, setError] = useState('');
+    const [shake, setShake] = useState(false);
+    const [swapKey, setSwapKey] = useState(0);
 
     const handleSubmit = (e) => {
-        if (state.name === '')
-            window.alert("Please fill out your name");
-        else{
-            onSubmit(state.name, state.count);
+        e && e.preventDefault();
+        const name = state.name.trim();
+        if (name === '') {
+            setError('Please fill out your name');
+            setShake(false);
+            requestAnimationFrame(() => setShake(true));
+            return;
         }
+        onSubmit(name, state.count);
     }
 
+    const changeChar = (type) => {
+        dispatch({type});
+        setSwapKey(k => k + 1);
+    }
+
+    // Arrow keys cycle characters when the name field isn't focused
     useEffect(() => {
-        console.log (state.name);
-        const handleKeyUp = (e) => {
-            if (e.key === 'Enter') {
-            handleSubmit();
-            }
+        const handleKeyDown = (e) => {
+            if (e.target.tagName === 'INPUT') return;
+            if (e.key === 'ArrowLeft') changeChar('decrease');
+            if (e.key === 'ArrowRight') changeChar('increase');
         };
-
-        window.addEventListener('keyup', handleKeyUp);
-
-        return () => {
-            window.removeEventListener('keyup', handleKeyUp);
-        };
-    }, [state]);
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     return(
-        <div 
+        <div
             id='homePage'
-            style={{
-                backgroundImage: `url(${Images.bg.source})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat',
-            }}
+            style={{ backgroundImage: `url(${Images.bg.source})` }}
         >
-            <img id= "logoImage" src={Images.logo.source} alt="" />
+            <img id="logoImage" className="pixel" src={Images.logo.source} alt="Wemen" />
             <div id="characterPick">
-                <img 
-                    id="arrowButton"
-                    src={Images.leftArrow.source} 
-                    alt='previous' 
-                    onClick = {()=>dispatch({type: 'increase'})} 
-                />
-                <img 
+                <button
+                    type="button"
+                    className="img-button arrowButton"
+                    aria-label="Previous character"
+                    onClick={() => changeChar('decrease')}
+                >
+                    <img className="pixel" src={Images.leftArrow.source} alt="" />
+                </button>
+                <img
+                    key={swapKey}
                     id="characterImage"
-                    src={Images.characters.source[state.count]} 
-                    alt="Character" 
+                    className={`pixel ${swapKey ? 'swap' : ''}`}
+                    src={Images.characters.source[state.count]}
+                    alt={`Character ${state.count + 1}`}
                 />
-                <img 
-                    id="arrowButton"
-                    src={Images.rightArrow.source} 
-                    alt='previous' 
-                    onClick= {()=>dispatch({type: 'decrease'})} 
-                />            
+                <button
+                    type="button"
+                    className="img-button arrowButton"
+                    aria-label="Next character"
+                    onClick={() => changeChar('increase')}
+                >
+                    <img className="pixel" src={Images.rightArrow.source} alt="" />
+                </button>
             </div>
-        <input 
-            id="nameInput"
-            type="text" 
-            value={state.name} 
-            onChange={(e)=>dispatch({
-            type: 'input', 
-            payload: {value: e.target.value}
-        })}
-            placeholder = 'Enter your name...' 
-        />
-        <img 
-            id="startButton"
-            src={Images.startButton.source} 
-            alt="Start" 
-            onClick={handleSubmit}
-        />
+            <div className="char-dots" aria-hidden="true">
+                {Images.characters.source.map((_, i) => (
+                    <span key={i} className={i === state.count ? 'active' : ''} />
+                ))}
+            </div>
+            <form id="nameForm" onSubmit={handleSubmit} noValidate>
+                <input
+                    id="nameInput"
+                    className={shake ? 'shake' : ''}
+                    type="text"
+                    maxLength={14}
+                    autoComplete="off"
+                    enterKeyHint="go"
+                    aria-label="Your name"
+                    aria-invalid={!!error}
+                    value={state.name}
+                    onChange={(e) => {
+                        setError('');
+                        dispatch({type: 'input', payload: {value: e.target.value}});
+                    }}
+                    onAnimationEnd={() => setShake(false)}
+                    placeholder='Enter your name...'
+                />
+                <p className="form-error" role="alert">{error}</p>
+                <button id="startButton" type="submit" className="img-button" aria-label="Start game">
+                    <img className="pixel" src={Images.startButton.source} alt="" />
+                </button>
+            </form>
+            <p className="hint">Use ← → to pick a character, Enter to start</p>
         </div>
     )
 }

@@ -102,7 +102,6 @@ const Game = (prop) => {
   const isSnakeActiveRef = useRef(isSnakeActive);
   const animationRef = useRef();
   const introAnimationRef = useRef();
-  const endingAnimationRef = useRef();
   const isMovingRef = useRef(false);
   const lastDirectionRef = useRef('down');
   const playerRef = useRef(new window.Image());
@@ -1593,7 +1592,10 @@ const Game = (prop) => {
       const intro = introRef.current;
       c.fillStyle = '#A6B04F';
       c.fillRect(0,0,canvas.width,canvas.height)
-      c.drawImage(intro, canvas.width*0.15, canvas.height*0.15, canvas.width*0.7, canvas.width*0.7*0.46)
+      // Fit the intro card inside the viewport on any aspect ratio
+      const w = Math.min(canvas.width*0.86, canvas.height*0.8/0.46, 900);
+      const h = w*0.46;
+      c.drawImage(intro, (canvas.width-w)/2, (canvas.height-h)/2, w, h)
       introAnimationRef.current = requestAnimationFrame(introAnimation);
     }
 
@@ -1702,22 +1704,6 @@ const Game = (prop) => {
     dispatch({type: 'changeHour'});
   }, [info.time.hour])
 
-  function endingAnimation (){
-    const canvas = canvasRef.current;
-    const c = contextRef.current;
-    const gameOverImage = gameOverRef.current;
-    let x = canvas.width*0.1;
-    let y;
-    const score = info.time.day*100 + info.coin*5;
-    if (canvas.width > 400) y = canvas.height*0.4;
-    else y = canvas.height*0.45;
-    c.drawImage(gameOverImage, x, y, canvas.width*0.8, canvas.width*0.8*0.12);
-    c.fillStyle = '#3b2216';
-    c.font = '30px monospace';
-    c.fillText ("Score: " + score,  550, 30);
-    endingAnimationRef.current = requestAnimationFrame(endingAnimation);
-  }
-
   useEffect(()=>{
     if (info.status.energy == 0 ||
         info.status.hunger == 0 ||
@@ -1735,8 +1721,7 @@ const Game = (prop) => {
       setCanEat(false);
       setCanSleep(false);
       setCanSnake(false);
-      console.log('load ending');
-      endingAnimationRef.current = requestAnimationFrame(endingAnimation);
+
     }
   }, [info.status])
 
@@ -1746,21 +1731,21 @@ const Game = (prop) => {
   else if (canBath) currentAction = "bath";
   else if (canSnake && !isSnakeActiveRef.current) currentAction = "snake";
 
+  const finalScore = info.time.day*100 + info.coin*5;
+
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh' }}>
-      <canvas ref={canvasRef} id="game" style={{ display: 'block', background: '#A6B04F'}} />
+    <div id="gameRoot">
+      <canvas ref={canvasRef} id="game" />
       {isStartGame && (
-        <div>
-          <div id='coinDisplay'>
-            <img src={icons.coin} alt="Coin" />
-            <p>{info.coin}</p>
-          </div>
+        <div className="hud">
           <Info 
             data = {prop.data.name} 
             time = {info.time} 
+            coin = {info.coin}
             update = {dispatch} 
             isFastFoward = {info.isFastFoward}
             gameOver = {isGameOver}
+            paused = {isSnakeActive}
           />
           <StatusBar 
             value = {info.status} 
@@ -1771,28 +1756,35 @@ const Game = (prop) => {
             restartIndex = {buyItem} 
             update = {dispatch}
           />
-          {(canSleep || canBath || canDodge || canEat || canSnake || isGameOver) && 
+          {!isGameOver && !isSnakeActive && currentAction &&
             <Buttons 
               action = {currentAction} 
               update = {dispatch} 
               buyItem = {buyItem} 
               info = {info}
               setIsSnakeActive = {updateSnakeActive}
-              canSleep={canSleep}
-              canBath={canBath}
-              canDodge={canDodge}
-              canEat={canEat}
-              canSnake={canSnake}
-              gameOver = {isGameOver}
-              restartGame = {prop.restartGame}
             />
           }
-          <Navigator onMove={handleNavigatorMove}/>
+          {!isGameOver && <Navigator onMove={handleNavigatorMove}/>}
+        </div>
+      )}
+      {isGameOver && (
+        <div className="overlay">
+          <img className="title-img pixel" src={icons.gameOver} alt="Game over" />
+          <div className="score-card">
+            <small>Final score</small>
+            <span className="big">{finalScore}</span>
+            <small>Survived {info.time.day} day{info.time.day > 1 ? 's' : ''} · {info.coin} coins</small>
+          </div>
+          <button id="restartButton" className="img-button" onClick={prop.restartGame} aria-label="Restart" autoFocus>
+            <img className="pixel" src={icons.button.restart} alt="" />
+          </button>
         </div>
       )}
       {isSnakeActive && (
         <SnakeGame
           key={snakeGameKey}
+          coin={info.coin}
           update={dispatch}
           setIsSnakeActive={updateSnakeActive}
         />

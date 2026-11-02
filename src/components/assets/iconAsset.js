@@ -22,8 +22,8 @@ const icons = {
         buy: import.meta.env.BASE_URL + "/gameAsset/icon/buttons/buyButton.png",
         restart: import.meta.env.BASE_URL + "/gameAsset/icon/buttons/restartButton.png",
         fastFwrd1: import.meta.env.BASE_URL + "/gameAsset/icon/buttons/fastFowr1.png",
-        fastFwrd2: import.meta.env.BASE_URL + "/gameAsset/icon/buttons/fastFowr2.png",
-        restart: import.meta.env.BASE_URL + "/gameAsset/icon/buttons/restartButton.png"
+        fastFwrd2: import.meta.env.BASE_URL + "/gameAsset/icon/buttons/fastFowr2.png"
+
     },
     snake: {
         tutor: import.meta.env.BASE_URL + "/gameAsset/icon/snake/snakeTutor.png",
